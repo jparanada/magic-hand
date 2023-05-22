@@ -28,6 +28,9 @@ you likely would want something with < 15.875 μm tolerance. I used the
 
 Just press the scan button on your scanner and it makes the picture, idk what you need all this stuff for. 🙃
 
+IT IS VERY IMPORTANT THAT THE INPUT TIFF BE TAGGED WITH ITS CORRECT DPI, since srf needs to know the 
+physical size of the image to work!
+
 (TODO)
 
 ## Suggested Substitutes

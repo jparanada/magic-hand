@@ -22,6 +22,8 @@ SCALAR_8_BIT = 255
 
 
 # TODO: this is by far the slowest part of the pipeline. Could implement a "draft" mode that skips it...
+# IT IS VERY IMPORTANT THAT THE TIFF BE TAGGED WITH ITS CORRECT DPI, since scanner_refl_fix needs to know the physical
+# size of the image to work!
 def scanner_refl_fix(path: str) -> str:
     result = subprocess.run([
         "scanner_refl_fix",
