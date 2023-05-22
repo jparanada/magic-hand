@@ -13,7 +13,7 @@ import subprocess
 from PIL import Image
 
 
-MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/card_mask_rounded_4.761905_radius.png")
+MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/goods/card_mask_rounded_4.761905_radius.png")
 RGB_WHITE = (255, 255, 255)
 
 

@@ -13,7 +13,7 @@ import subprocess
 from PIL import Image
 
 
-MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/card_mask_rounded_4.761905_radius.png")
+MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/goods/card_mask_rounded_4.761905_radius.png")
 RGB_WHITE = (255, 255, 255)
 
 
@@ -33,7 +33,7 @@ def cctiff_srgb(path: str) -> str:
     result = subprocess.run([
         "cctiff",
         "-N",
-        "-ir", os.path.expanduser("~/common_profiles/LargeRGB-elle-V2-g18.icc"),
+        "-ir", os.path.expanduser("~/Pictures/pokemon-tcg/goods/LargeRGB-elle-V2-g18.icc"),
         "-ir", os.path.expanduser("~/common_profiles/windows/sRGB.icc"),
         path,
         output_path
