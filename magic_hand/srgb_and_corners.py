@@ -67,7 +67,7 @@ def srgb_and_corners_pipeline(image_path, output_folder):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="sharpen, downscale, and crop an image")
+        description="convert to sRGB, round the image corners, and export png/jpg")
     parser.add_argument(
         "path",
         metavar="input_image",

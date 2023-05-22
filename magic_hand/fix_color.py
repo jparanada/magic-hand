@@ -21,11 +21,7 @@ SCALAR_16_BIT = 65535
 SCALAR_8_BIT = 255
 
 
-def get_scaled_dpi(filename: str) -> int:
-    cmd = f"exiftool -b '-Xresolution' {filename}"
-    return int(os.popen(cmd).readline())
-
-
+# TODO: this is by far the slowest part of the pipeline. Could implement a "draft" mode that skips it...
 def scanner_refl_fix(path: str) -> str:
     result = subprocess.run([
         "scanner_refl_fix",
@@ -66,31 +62,10 @@ def run_pipeline(path: str, input_profile, output_folder) -> None:
     print(path_f)
     image_f_pp = cctiff(input_profile, path_f, output_folder)
 
-    # filename = os.path.basename(image_f_pp)
-    # full_save_path_no_extension = os.path.join("????", filename).split(".tif")[0]
-    # image = cv.imread(image_f_pp, cv.IMREAD_UNCHANGED)
-    #
-    # is_16bit = isinstance(image[0, 0, 0], np.uint16)
-    # scalar = SCALAR_16_BIT if is_16bit else SCALAR_8_BIT
-    # image = cv.pow(image/scalar, PROPHOTO_GAMMA)
-    #
-    # # convert BGR->RGB
-    # image = image[..., ::-1]
-    # # image_f_pp_wb = white_balance(image_f_pp)
-    # # convert RGB->BGR
-    # image = image[..., ::-1]
-
-
-    #
-    # dpi = get_scaled_dpi(path)
-    # cv.imwrite(
-    #     full_output_path, image_f_pp_wb,
-    #     params=[cv.IMWRITE_TIFF_XDPI, dpi, cv.IMWRITE_TIFF_YDPI, dpi])
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fix color for a raw scan with scanner_refl_fix. Outputs a "
-                                                 "white-balanced ProPhoto image.")
+                                                 "ProPhoto image.")
     parser.add_argument(
         "path",
         metavar="input_image",

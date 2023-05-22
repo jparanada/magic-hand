@@ -120,6 +120,7 @@ def print_epson_scan_values(rect_pixel):
     """
     print(output)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Calculate Epson settings from desired pixel offset and area')
     parser.add_argument(

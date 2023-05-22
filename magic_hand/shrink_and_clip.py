@@ -202,7 +202,7 @@ def shrink_and_clip_pipeline(img_file: str, save_path: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="sharpen, downscale, and crop an image")
+        description="sharpen, downscale, and crop an image (not including corner-rounding)")
     parser.add_argument(
         "path",
         metavar="input_image",

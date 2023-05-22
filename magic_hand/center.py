@@ -8,7 +8,6 @@
 import argparse
 from collections import Counter
 import glob
-import math
 import os
 
 import cv2 as cv
@@ -53,6 +52,7 @@ UPPER_HSV = UPPER_HSV_EX_NONHOLO
 TOP_BORDER_AREA = np.intp(1 / 3 * CONFIG_IMAGE_DPI)
 # empirical value is 1.36; should be a bit higher than that. 1.43 is the normal ratio so should be much lower than that.
 EX_SHORT_STRIP_HW_RATIO_THRESHOLD = 1.39
+Y_OFFSET_FOR_SHORT_STRIP = -124
 
 """
 1. find the 4 corners of the inner quadrilateral `exact_corners`
@@ -68,13 +68,6 @@ def load_image(img_path):
     image_8 = cv.imread(img_path, cv.IMREAD_COLOR)
 
     return image_8, image_16
-
-
-def get_theta(p1, p2):
-    [p1_x, p1_y] = p1
-    [p2_x, p2_y] = p2
-    angle = math.degrees(math.atan2(p1_y - p2_y, p1_x - p2_x))
-    return angle
 
 
 def get_intersection_from_line_points(line1_p1, line1_p2, line2_p1, line2_p2):
@@ -103,97 +96,6 @@ def get_intersection(horizontal_line, vertical_line):
     ])
     [x], [y] = np.linalg.solve(A, b)
     return [x, y]
-
-
-def find_rough_corners_with_hough(image, thresh):
-    # cv.imshow('Image thresh no morph', thresh)
-    # cv.waitKey(0)
-    # cv.destroyAllWindows()
-    # thresh = cv.morphologyEx(thresh, cv.MORPH_OPEN, None, iterations=4)
-    # cv.imshow('Image thresh morph', thresh)
-    # cv.waitKey(0)
-    # cv.destroyAllWindows()
-
-    thresh = cv.bitwise_not(thresh)
-    cv.imshow('Image thresh not', thresh)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-    # cv.floodFill(thresh, None, (0, 0), 0)
-    # cv.imshow('Image thresh flood', thresh)
-    # cv.waitKey(0)
-    # cv.destroyAllWindows
-
-    # see https://docs.opencv.org/4.5.5/d4/d73/tutorial_py_contours_begin.html
-    # https://docs.opencv.org/4.5.5/d9/d8b/tutorial_py_contours_hierarchy.html
-    contours, hierarchy = cv.findContours(thresh, cv.RETR_CCOMP, cv.CHAIN_APPROX_SIMPLE)
-
-    # https://stackoverflow.com/questions/67457125/how-to-detect-white-region-in-an-image-with-opencv-python
-    r = max(contours, key=cv.contourArea)
-
-    tmp = np.zeros((image.shape[0], image.shape[1]), np.uint8)
-    cv.drawContours(tmp, [r], -1, 255)
-    cv.imshow("after contour detection", tmp)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-    linesP = cv.HoughLinesP(tmp, rho=1, theta=1 * np.pi / 180, threshold=7, minLineLength=200, maxLineGap=35)
-
-    lines = [line_p[0] for line_p in linesP]
-    vertical_lines = filter_on_theta_with_theta(lines, 90, threshold_degrees=0.35)
-    horizontal_lines = filter_on_theta_with_theta(lines, 180, threshold_degrees=0.35)
-    print("vertical lines", vertical_lines)
-    print("horizontal lines", horizontal_lines)
-
-    # cdstP = np.zeros(image.shape, np.uint8)  # cv.cvtColor(borders, cv.COLOR_GRAY2BGR)
-    output = image.copy()
-    top = [float("inf"), float("inf"), float("inf"), float("inf")]
-    right = [-1, -1, -1, -1]
-    bottom = [-1, -1, -1, -1]
-    left = [float("inf"), float("inf"), float("inf"), float("inf")]
-    # print("find_rough_corners_with_hough -- all lines:")
-    # for l in lines:
-    #     print(l)
-    #     [x1, y1, x2, y2] = l
-    #     cv.line(output, (l[0], l[1]), (l[2], l[3]), (255, 0, 0), 3, cv.LINE_AA)
-    for l in vertical_lines:
-        print(l)
-        [x1, _, x2, _] = l
-        if x1 < left[0] or x2 < left[2]:
-            left = l
-        if x1 > right[0] or x2 > right[2]:
-            right = l
-    for l in horizontal_lines:
-        print(l)
-        [_, y1, _, y2] = l
-        if y1 < top[1] or y2 < top[3]:
-            top = l
-        if y1 > bottom[1] or y2 > bottom[3]:
-            bottom = l
-
-    for l in [top, right, bottom, left]:
-        cv.line(output, (l[0], l[1]), (l[2], l[3]), (255, 0, 0), 3, cv.LINE_AA)
-    print("four lines", [top, right, bottom, left])
-    cv.imshow("selected lines (rough)", output)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-    tl = get_intersection_from_line_points(
-        [top[0], top[1]], [top[2], top[3]], [left[0], left[1]], [left[2], left[3]])
-    tr = get_intersection_from_line_points(
-        [top[0], top[1]], [top[2], top[3]], [right[0], right[1]], [right[2], right[3]])
-    br = get_intersection_from_line_points(
-        [bottom[0], bottom[1]], [bottom[2], bottom[3]], [right[0], right[1]], [right[2], right[3]])
-    bl = get_intersection_from_line_points(
-        [bottom[0], bottom[1]], [bottom[2], bottom[3]], [left[0], left[1]], [left[2], left[3]])
-    corners = np.array([tl, tr, br, bl])
-    print("corners", corners)
-    for i in range(4):
-        cv.line(output, np.int32(corners[i - 1]), np.int32(corners[i]), (255, 0, 0), 3, cv.LINE_AA)
-    cv.imshow("fully-extended selected lines (rough)", output)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-    return corners
 
 
 def blur(image_8, k=15):
@@ -284,169 +186,6 @@ def find_border_sobel(thresholded_border, retr_mode=cv.RETR_CCOMP, approx_mode=c
     return borders, contours
 
 
-def find_lines_hough_lines_p(shape, borders):
-    linesP = cv.HoughLinesP(borders, rho=1, theta=1 * np.pi / 180, threshold=7, minLineLength=200, maxLineGap=35)
-    cdstP = np.zeros(shape, np.uint8)  # cv.cvtColor(borders, cv.COLOR_GRAY2BGR)
-    if linesP is not None:
-        for i in range(0, len(linesP)):
-            l = linesP[i][0]
-            cv.line(cdstP, (l[0], l[1]), (l[2], l[3]), (255, 0, 0), 1, cv.LINE_AA)
-    cv.imshow("find_lines_hough_lines_p Detected Lines - Standard Hough Line Transform", cdstP)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-    return linesP, cdstP
-
-
-def filter_on_theta_with_theta(lines, theta, threshold_degrees=1.5):
-    return np.array(filter_on_theta(None, None, lines, threshold_degrees, force_theta=theta))
-
-
-def filter_on_theta(target_p1, target_p2, lines, threshold_degrees=1.5, force_theta=None):
-    filtered_lines = []
-    theta_target = force_theta if force_theta is not None else get_theta(target_p1, target_p2)
-    for line in lines:
-        [p1_x, p1_y, p2_x, p2_y] = line
-        theta = get_theta([p1_x, p1_y], [p2_x, p2_y])
-
-        # mod 180, not 360, because we don't care about vector directionality
-        theta_target_adjusted = (theta_target + 360) % 180
-        theta_adjusted = (theta + 360) % 180
-
-        if abs(theta_target_adjusted - theta_adjusted) < threshold_degrees:
-            filtered_lines.append(line)
-        elif theta_adjusted < 180:
-            if abs(theta_target_adjusted - (theta_adjusted + 180)) < threshold_degrees:
-                filtered_lines.append(line)
-            elif theta_target_adjusted < 180:
-                if abs(theta_target_adjusted + 180 - theta_adjusted) < threshold_degrees:
-                    filtered_lines.append(line)
-                else:
-                    print(f"rejected {theta_adjusted} vs reference {theta_target_adjusted}")
-        else:
-            print(f"rejected {theta_adjusted} vs reference {theta_target_adjusted}")
-
-    return filtered_lines
-
-
-# TODO it's goofy to have these lines, then draw them, then contour-detect, then detect a line.
-# This might result in loss of precision since we only draw on integer pixels and the contour detection only returns
-# integer pixels.
-# Is there something more elegant we can do?
-def get_line_from_filtered_lines(lines_filtered, height, width):
-    temp_image = np.zeros((height, width), np.uint8)
-    for line in lines_filtered:
-        cv.line(temp_image, (line[0], line[1]), (line[2], line[3]), 255, 1, cv.LINE_AA)
-    # probably don't need the below three lines, and it slows down the code a fair bit.
-    # the idea was to deal with contours that are thicker than others, but that might not actually be a problem.
-
-    # temp_image = cv.morphologyEx(temp_image, cv.MORPH_CLOSE, None, iterations=4)
-    # temp_image = cv.normalize(temp_image, None, 0., 255., cv.NORM_MINMAX, cv.CV_8U)
-    # temp_image = cv.ximgproc.thinning(temp_image)
-
-    # cv.imshow("temp_image", temp_image)
-    # cv.waitKey(0)
-    # cv.destroyAllWindows()
-
-    contours, _ = cv.findContours(temp_image, cv.RETR_LIST, cv.CHAIN_APPROX_NONE)
-    # print(f"contours {contours}")
-    fit_line_input = np.vstack(contours)
-    # print(f"line contours {fit_line_input}")
-    # https://docs.opencv.org/4.6.0/dd/d49/tutorial_py_contour_features.html
-    line = cv.fitLine(fit_line_input, cv.DIST_L2, 0, 0.01, 0.01)
-    print(f"line {[item[0] for item in line]}")
-    return [item[0] for item in line]
-
-
-def boujee_line_detection(hough_lines, area_to_look, dims, width_around_area=5):
-    [tl, tr, br, bl] = area_to_look
-
-    width = dims[1]
-    height = dims[0]
-    print(f"dims {dims}")
-    # dims (5692, 4134, 3)
-
-    top_lines = []
-    left_lines = []
-    right_lines = []
-    bottom_lines = []
-
-    # given a line between p1 & p2, the shortest distance from p3 to that line is
-    # d = np.cross(p2-p1, p3-p1)/np.linalg.norm(p2-p1)
-    # hough_lines look like e.g. [ [[1 2 3 4]] [[5 6 7 8]] [[x1 y1 x2 y2]] ]
-    left_norm = np.linalg.norm(tl - bl)
-    right_norm = np.linalg.norm(tr - br)
-    top_norm = np.linalg.norm(tl - tr)
-    bottom_norm = np.linalg.norm(bl - br)
-
-    for hough_line_list in hough_lines:
-        hough_line = hough_line_list[0]
-        [p1_x, p1_y, p2_x, p2_y] = hough_line
-        # https://stackoverflow.com/questions/39840030/distance-between-point-and-a-line-from-two-points
-        p1 = np.array([p1_x, p1_y])
-        p2 = np.array([p2_x, p2_y])
-        if np.abs(np.cross(tl - bl, p1 - bl)) / left_norm <= width_around_area and np.abs(
-                np.cross(tl - bl, p2 - bl)) / left_norm <= width_around_area:
-            left_lines.append(hough_line)
-        if np.abs(np.cross(tr - br, p1 - br)) / right_norm <= width_around_area and np.abs(
-                np.cross(tr - br, p2 - br)) / right_norm <= width_around_area:
-            right_lines.append(hough_line)
-        if np.abs(np.cross(tl - tr, p1 - tr)) / top_norm <= width_around_area and np.abs(
-                np.cross(tl - tr, p2 - tr)) / top_norm <= width_around_area:
-            top_lines.append(hough_line)
-        if np.abs(np.cross(bl - br, p1 - br)) / bottom_norm <= width_around_area and np.abs(
-                np.cross(bl - br, p2 - br)) / bottom_norm <= width_around_area:
-            bottom_lines.append(hough_line)
-
-    # TODO consider np.vectorize and then filtering after that, or some way to use np.atan2 on a whole np.array instead of looping
-    # https://stackoverflow.com/questions/35215161/most-efficient-way-to-map-function-over-numpy-array
-    # x = np.array([1, 2, 3, 4, 5])
-    # f = lambda x: x ** 2
-    # squares = f(x)
-    top_lines_filtered = filter_on_theta(tl, tr, top_lines, force_theta=0)
-    top_line = get_line_from_filtered_lines(top_lines_filtered, height, width)
-
-    left_lines_filtered = filter_on_theta(tl, bl, left_lines, force_theta=90)
-    left_line = get_line_from_filtered_lines(left_lines_filtered, height, width)
-
-    right_lines_filtered = filter_on_theta(tr, br, right_lines, force_theta=90)
-    right_line = get_line_from_filtered_lines(right_lines_filtered, height, width)
-
-    bottom_lines_filtered = filter_on_theta(bl, br, bottom_lines, force_theta=0)
-    bottom_line = get_line_from_filtered_lines(bottom_lines_filtered, height, width)
-
-    temp_image = np.zeros((height, width), np.uint8)
-    all_lines_filtered = []
-    for l in top_lines_filtered:
-        all_lines_filtered.append(l)
-    for l in left_lines_filtered:
-        all_lines_filtered.append(l)
-    for l in right_lines_filtered:
-        all_lines_filtered.append(l)
-    for l in bottom_lines_filtered:
-        all_lines_filtered.append(l)
-    for l in all_lines_filtered:
-        cv.line(temp_image, (l[0], l[1]), (l[2], l[3]), 255, 1, cv.LINE_AA)
-    # cv.imshow("all_lines_filtered before best fit", temp_image)
-    # cv.waitKey(0)
-    # cv.destroyAllWindows()
-
-    tl_exact = get_intersection(top_line, left_line)
-    tr_exact = get_intersection(top_line, right_line)
-    br_exact = get_intersection(bottom_line, right_line)
-    bl_exact = get_intersection(bottom_line, left_line)
-    result = np.array([tl_exact, tr_exact, br_exact, bl_exact])
-
-    # print(f"exact corners result {result}")
-    # tmp = np.zeros((height, width), np.uint8)
-    # for i in range(4):
-    #     cv.line(tmp, np.intp(result[i - 1]), np.intp(result[i]), 255, 5, cv.LINE_AA)
-    # cv.imshow("boujee_line_detection lines only", tmp)
-    # cv.waitKey(0)
-    # cv.destroyAllWindows()
-
-    return result
-
-
 def get_y_offset(rect_w, rect_h):
     if rect_h > rect_w:
         hw_ratio = rect_h / rect_w
@@ -457,7 +196,7 @@ def get_y_offset(rect_w, rect_h):
     # print("rotated rect w, h, ratio", rect_w, rect_h, hw_ratio)
 
     if hw_ratio < EX_SHORT_STRIP_HW_RATIO_THRESHOLD:
-        return -124
+        return Y_OFFSET_FOR_SHORT_STRIP
     return 0
 
 
@@ -588,23 +327,6 @@ def find_inner_edges_ransac(thresholded_border, shape):
     return result
 
 
-def find_exact_corners_with_old_algorithm(thresholded_border, image_8, image_8_blurred):
-    border_sobel, _ = find_border_sobel(thresholded_border)
-    hough_lines, border_sobel_hough_lines = find_lines_hough_lines_p(image_8_blurred.shape, border_sobel)
-    # corners = find_corners(border_sobel, bounding_rect)
-    corners = find_rough_corners_with_hough(image_8, thresholded_border)
-    # print("corners", corners)
-    exact_corners = boujee_line_detection(hough_lines, corners, image_8.shape, 4)
-    exact_corners_ints = np.array(exact_corners, dtype=np.int32)
-    # print("exact_corners_ints", exact_corners_ints)
-    for i in range(0, len(exact_corners_ints)):
-        cv.line(image_8, exact_corners_ints[i - 1], exact_corners_ints[i], (0, 0, 255), 5, cv.LINE_AA)
-    cv.imshow("boujee_line_detection lines on pic", image_8)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-    return exact_corners
-
-
 def find_exact_corners(image_8):
     thresholded_border = get_thresholded_border(image_8, LOWER_HSV, UPPER_HSV)
     return find_inner_edges_ransac(thresholded_border, image_8.shape)
@@ -620,19 +342,6 @@ def center_pipeline(img_file, save_path):
 
     image_16 = cv.pow(image_16 / scalar, PROPHOTO_GAMMA)
 
-    # bounding_rect = find_rough_corners(image_8)
-    # thresholded_border = np.zeros((h, w), dtype=np.uint8)
-    # ex_dark_yellow_low = np.array([51.67 / 2, 49.55 / 100 * 255, 85.59 / 100 * 255])
-    # ex_dark_yellow_high = np.array([61.67 / 2, 59.55 / 100 * 255, 95.59 / 100 * 255])
-    #     tmp[138:138+crop_height, 178:178+crop_width] = m[138:138+crop_height, 178:178+crop_width]
-    # TODO: I'm pretty sure these top border thresholds are too aggressive; okay for Dragon but not TRR
-    # top_zoom = image_8_blurred[0:TOP_BORDER_AREA, 0:w]
-    # thresholded_border[0:TOP_BORDER_AREA, 0:w] = get_thresholded_border(
-    #     top_zoom, ex_dark_yellow_low, ex_dark_yellow_high)
-    # rest_of_card = image_8_blurred[TOP_BORDER_AREA - 100:h, 0:w]
-    # thresholded_border[TOP_BORDER_AREA - 100:h, 0:w] = get_thresholded_border(
-    #     rest_of_card, LOWER_HSV_EX, UPPER_HSV_EX)
-
     exact_corners = find_exact_corners(image_8)
 
     exact_corners_ints = np.array(exact_corners, dtype=np.int32)
@@ -642,8 +351,6 @@ def center_pipeline(img_file, save_path):
     cv.imshow("find_inner_edges_ransac lines on pic", image_8)
     cv.waitKey(0)
     cv.destroyAllWindows()
-
-    # exact_corners = find_exact_corners_with_old_algorithm(thresholded_border, image_8, image_8_blurred)
 
     image_16 = rotate_and_straighten(image_16, exact_corners)
 

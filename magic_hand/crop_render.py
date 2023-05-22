@@ -29,6 +29,9 @@ def oxipng(path: str) -> str:
 
 
 def crop_render(image_path, output_folder):
+    """
+    Whoops! This method has nothing to do with magic_hand... but maybe you can find a use for it...
+    """
     card = Image.open(image_path)
     w, h = card.size
     if w == 1024 and h == 1024:
