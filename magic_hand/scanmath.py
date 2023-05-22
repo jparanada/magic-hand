@@ -131,7 +131,7 @@ if __name__ == '__main__':
         help="x offset, y offset, width, height. All values are floats and relative to the top-left corner of a single roi (rectangle of interest). Assumes 1600 dpi.")
     args = parser.parse_args()
     np.set_printoptions(precision=80)
-    if (len(args.roi) != 4):
+    if len(args.roi) != 4:
         raise ValueError("Exactly 4 params are needed to define the roi.")
     [x, y, w, h] = args.roi
     rect_pixel = np.array(args.roi, dtype=np.float64)

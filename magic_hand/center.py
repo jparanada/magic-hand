@@ -18,7 +18,6 @@ CONFIG_FINAL_H = 5652
 CONFIG_IMAGE_DPI = 1600
 CONFIG_SCALE_FUDGE_FACTOR = 5699/5692
 
-
 # defined by libtiff
 COMPRESSION_NONE = 1
 
@@ -261,6 +260,8 @@ def find_inner_edges_ransac(thresholded_border, shape):
     h = shape[0]
     # heuristic to find a good starting point for the 4 best-fits we want to do
     # probably terrible if the image is too rotated, but for ruler-aligned cards, it won't be an issue.
+    # TODO: could consider X pixel-big "buckets" that overlaps by some amount Y and then choose the "mode bucket"--
+    #  perhaps that's more robust than using the single mode?
     x_coords, y_coords = zip(*coordinates)
     left_x_coords = []
     right_x_coords = []
@@ -302,10 +303,6 @@ def find_inner_edges_ransac(thresholded_border, shape):
             y_top_points.append(coordinate)
         if y_bottom-margin_for_fit_line < y < y_bottom+margin_for_fit_line:
             y_bottom_points.append(coordinate)
-    # left_line = cv2.fitLine(np.array(x_left_points), cv.DIST_HUBER, 0, 0.01, 0.01)
-    # right_line = cv2.fitLine(np.array(x_right_points), cv.DIST_HUBER, 0, 0.01, 0.01)
-    # top_line = cv2.fitLine(np.array(y_top_points), cv.DIST_HUBER, 0, 0.01, 0.01)
-    # bottom_line = cv2.fitLine(np.array(y_bottom_points), cv.DIST_HUBER, 0, 0.01, 0.01)
     left_line = get_fit_line_ransac(x_left_points)
     right_line = get_fit_line_ransac(x_right_points)
     top_line = get_fit_line_ransac(y_top_points)
@@ -334,7 +331,6 @@ def find_exact_corners(image_8):
 
 def center_pipeline(img_file, save_path):
     filename = os.path.basename(img_file)
-    # full_save_path = os.path.join(save_path, filename)
     full_save_path_no_extension = os.path.join(save_path, filename).split(".tif")[0]
     image_8, image_16 = load_image(img_file)
     is_16bit = isinstance(image_16[0][0][0], np.uint16)

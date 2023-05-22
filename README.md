@@ -29,7 +29,9 @@ you likely would want something with < 15.875 μm tolerance. I used the
 Just press the scan button on your scanner and it makes the picture, idk what you need all this stuff for. 🙃
 
 IT IS VERY IMPORTANT THAT THE INPUT TIFF BE TAGGED WITH ITS CORRECT DPI, since srf needs to know the 
-physical size of the image to work!
+physical size of the image to work! Epson Scan will tag the image correctly, and image editors like Affinity Photo &
+Photoshop will preserve any DPI that's been set, so as long as you didn't do something like bring the scan into a
+project with different DPI, you should be fine here.
 
 (TODO)
 
