@@ -124,7 +124,7 @@ def white_balance(linearized_rgb, illuminant_src):
 
     # print("clipped rgb\n", np.clip(white_balanced_rgb, 0, 1))
     # raise Exception("test only")
-    return np.clip(white_balanced_rgb, 0, 1)
+    return np.clip(white_balanced_rgb, 0, 1, white_balanced_rgb)
 
 
 def white_balance_pipeline(img_file, source_wp_xyz, save_path):
