@@ -229,14 +229,14 @@ if __name__ == "__main__":
         help="holo type (one of nonholo, holo, ex, shattered)")
     parser.add_argument(
         "-i", dest="calibration_input_file", type=str,
-        help="input file that describes a calibration. for use only with -c",
+        help="input file that describes a calibration created with camera_calibrate -c",
         required=True)
     parser.add_argument(
         "-o", dest="output_folder", type=str, default=".",
         help="output folder for color-corrected images")
     parser.add_argument(
         "-f", dest="offsets_file", type=str,
-        help="file that describes offsets of the distortion target and image ROIs. for use only with -c")
+        help="file that describes offsets of the distortion target and image ROIs")
     parser.add_argument(
         "-p",
         dest="input_profile",

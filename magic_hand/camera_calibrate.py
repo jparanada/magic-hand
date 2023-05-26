@@ -444,10 +444,10 @@ if __name__ == "__main__":
         " (cannot use with -o)")
     parser.add_argument(
         "-f", dest="offsets_file", type=str,
-        help="file that describes offsets of the distortion target and image ROIs. for use only with -c")
+        help="file that describes offsets of the distortion target and image ROIs. for use only with -o")
     parser.add_argument(
         "-i", dest="calibration_input_file", type=str,
-        help="input file that describes a calibration. for use only with -c")
+        help="input file that describes a calibration. for use only with -o")
     parser.add_argument(
         "-o", dest="output_folder", type=str,
         help="output folder for undistorted images. (cannot use with -c)")
@@ -490,4 +490,4 @@ if __name__ == "__main__":
             if os.path.exists(i):
                 calibration_pipeline(i, args.calibration_output_folder)
             else:
-                raise ValueError("{} does not exist".format(i))
+                raise ValueError(f"{i} does not exist")
