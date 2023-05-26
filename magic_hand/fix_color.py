@@ -44,7 +44,7 @@ def cctiff(input_profile: str, input_image: str, output_path) -> str:
         "cctiff",
         "-N",
         "-ir", os.path.expanduser(input_profile),
-        "-ir", os.path.expanduser("~/Pictures/pokemon-tcg/goods/LargeRGB-elle-V2-g18.icc"),
+        "-ir", os.path.expanduser("~/common_profiles/LargeRGB-elle-V2-g18.icc"),
         input_image,
         output_image
     ])

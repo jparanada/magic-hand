@@ -33,7 +33,7 @@ def cctiff_srgb(path: str) -> str:
     result = subprocess.run([
         "cctiff",
         "-N",
-        "-ir", os.path.expanduser("~/Pictures/pokemon-tcg/goods/LargeRGB-elle-V2-g18.icc"),
+        "-ir", os.path.expanduser("~/common_profiles/LargeRGB-elle-V2-g18.icc"),
         "-ir", os.path.expanduser("~/common_profiles/windows/sRGB.icc"),
         path,
         output_path
@@ -47,7 +47,6 @@ def srgb_and_corners_pipeline(image_path, output_folder):
     # We can open this 3-channel 16 bpc tiff okay in pillow, it just auto-converts to 8 bpc.
     # This is fine because we are going to export as 8 bpc anyway.
     card = Image.open(image_path_srgb)
-    os.remove(image_path_srgb)
     alpha = Image.open(MASK_PATH).convert("L")
     card.putalpha(alpha)
 
@@ -63,6 +62,8 @@ def srgb_and_corners_pipeline(image_path, output_folder):
     card_for_jpg.paste(card, mask=alpha)
     # https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#jpeg
     card_for_jpg.save(full_save_path_no_extension + ".jpg", quality=75, subsampling="4:4:4")
+
+    os.remove(image_path_srgb)
 
 
 if __name__ == "__main__":
