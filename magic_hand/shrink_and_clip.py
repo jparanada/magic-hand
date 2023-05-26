@@ -120,13 +120,22 @@ def sharpen_luminosity(image: np.ndarray, radius=1.272, amount=1.0, threshold=1.
     return convert_cielab_to_linearized_prophoto(image_cielab)
 
 
-def resize_opencv(image: np.ndarray):
+def resize_opencv_bicubic(image: np.ndarray):
+    arr_out = cv.resize(image, (CONFIG_OUTPUT_DIMS[0], CONFIG_OUTPUT_DIMS[1]), interpolation=cv.INTER_CUBIC)
+    arr_out = np.clip(arr_out, 0., 1., out=arr_out)
+    # luminosity sharpening second pass. may have to re-tune params if you change the interpolation method
+    arr_out = sharpen_luminosity(arr_out, radius=0.55, amount=0.4, threshold=1.0)
+    return arr_out
+
+
+def resize_opencv_area(image: np.ndarray):
     # opencv doc for resize recommends INTER_AREA for shrinking
-    # this also looks good based on my own experiments
+    # looks alright, but text is a bit soft
     arr_out = cv.resize(image, (CONFIG_OUTPUT_DIMS[0], CONFIG_OUTPUT_DIMS[1]), interpolation=cv.INTER_AREA)
     arr_out = np.clip(arr_out, 0., 1., out=arr_out)
     # luminosity sharpening second pass. may have to re-tune params if you change the interpolation method
-    return sharpen_luminosity(arr_out, radius=0.55, amount=0.75, threshold=1.0)
+    arr_out = sharpen_luminosity(arr_out, radius=0.55, amount=0.75, threshold=1.0)
+    return arr_out
 
 
 def resize_pillow(image: np.ndarray):
@@ -144,7 +153,7 @@ def resize_pillow(image: np.ndarray):
     return sharpen_luminosity(arr_out, radius=0.55, amount=0.5, threshold=1.0)
 
 
-def shrink_and_clip(image_float):
+def shrink_and_clip(image_float, black_point_percentage=7, gamma=0.87):
     # convert BGR->RGB
     image_float = image_float[..., ::-1]
 
@@ -152,9 +161,9 @@ def shrink_and_clip(image_float):
     lstar = image_cielab[..., 0]
 
     # luminosity contrast
-    lstar = exposure.rescale_intensity(lstar, in_range=(17, 100), out_range=(0, 100))
+    lstar = exposure.rescale_intensity(lstar, in_range=(black_point_percentage, 100), out_range=(0, 100))
     lstar /= 100
-    lstar = np.power(lstar, 0.76, out=lstar)
+    lstar = np.power(lstar, gamma, out=lstar)
     lstar *= 100
 
     # luminosity sharpening first pass
@@ -163,7 +172,7 @@ def shrink_and_clip(image_float):
     image_cielab[..., 0] = lstar
     image_float = convert_cielab_to_linearized_prophoto(image_cielab)
 
-    image_float = resize_opencv(image_float)
+    image_float = resize_opencv_bicubic(image_float)
 
     # crop
     image_float = image_float[

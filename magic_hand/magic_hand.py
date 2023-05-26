@@ -11,12 +11,13 @@ import os
 import argparse
 import cv2 as cv
 import numpy as np
+from config import get_config
 from fix_color import scanner_refl_fix, cctiff
 from white_balance import white_balance
 from camera_calibrate import read_offsets, embed_in_target_area, undistort, read_calibration, crop_with_offsets
 from center import find_exact_corners, find_affine_matrix_for_centering, CONFIG_FINAL_W, CONFIG_FINAL_H
 from shrink_and_clip import shrink_and_clip
-from srgb_and_corners import srgb_and_corners_pipeline
+from srgb_and_corners import srgb_and_corners_pipeline, cctiff_srgb
 import skimage.transform as transform
 
 CONFIG_SCANNER_REFL_FIX_CALIBRATION_PATH = "/Users/paranada/icc_profiles/scanner/scanner_cal.txt"
@@ -29,40 +30,7 @@ SCALAR_16_BIT = 65535
 SCALAR_8_BIT = 255
 
 
-def run_pipeline(path: str, input_profile, source_wp_xyz, calibration_input_file, offsets_file, output_folder) -> None:
-    """
-    fix_color
-    white_balance
-    camera_calibrate
-    center
-    shrink_and_clip
-    srgb_and_corners
-    """
-    filename = os.path.basename(path)
-    full_save_path_no_extension = os.path.join(output_folder, filename).split(".tif")[0]
-
-    path_f = scanner_refl_fix(path)
-    image_f_pp = cctiff(input_profile, path_f, output_folder)
-    # image_f_pp = cctiff(input_profile, "/Users/paranada/Pictures/pokemon-tcg/clean/hl-clean/hl018-gorebyss-clean_f.tif", output_folder)
-
-    # filename = os.path.basename(image_f_pp)
-    # full_save_path_no_extension = os.path.join(save_path, filename).split(".tif")[0]
-    image = cv.imread(image_f_pp, cv.IMREAD_UNCHANGED)
-    is_16bit = isinstance(image[0, 0, 0], np.uint16)
-    scalar = 65535 if is_16bit else 255
-    image_float = image / scalar
-    image_float **= PROPHOTO_GAMMA
-
-    # convert BGR->RGB
-    image_float = image_float[..., ::-1]
-
-    print("starting white balance...")
-    image_float = white_balance(image_float, source_wp_xyz)
-    print("finished white balance.")
-
-    # convert RGB->BGR
-    image_float = image_float[..., ::-1]
-
+def center_combined(image_float, offsets_file, calibration_input_file, lower_hsv, upper_hsv):
     # Here we could just call camera_cal followed by center. However, that does two linear transforms back-to-back,
     # which slightly degrades image quality vs just doing one. If we're clever with our math we can find a single
     # perspective warp that is the composition of these two transforms (and also includes a rotation, if needed).
@@ -94,7 +62,7 @@ def run_pipeline(path: str, input_profile, source_wp_xyz, calibration_input_file
     image_float_cropped = crop_with_offsets(undistorted_correct_perspective_image_in_large_area, original_width, original_height, offsets)
 
     image_8_cropped = np.uint8((image_float_cropped ** (1 / PROPHOTO_GAMMA)) * 255)
-    exact_corners = find_exact_corners(image_8_cropped)
+    exact_corners = find_exact_corners(image_8_cropped, lower_hsv, upper_hsv)
     [tl_cropped_before_affine, tr_cropped_before_affine, br_cropped_before_affine, bl_cropped_before_affine] = exact_corners
 
     print("starting rotate_and_straighten...")
@@ -152,23 +120,92 @@ def run_pipeline(path: str, input_profile, source_wp_xyz, calibration_input_file
     affine_matrix = np.append(affine_matrix, np.float32([[0, 0, 1]]), axis=0)
     combined_matrix = np.matmul(affine_matrix, perspective_matrix)
     print("combined_matrix", combined_matrix)
-    image_float = cv.warpPerspective(undistorted_image_in_large_area, combined_matrix, (CONFIG_FINAL_W, CONFIG_FINAL_H), flags=cv.INTER_LINEAR)
+    return cv.warpPerspective(undistorted_image_in_large_area, combined_matrix, (CONFIG_FINAL_W, CONFIG_FINAL_H), flags=cv.INTER_LINEAR)
 
-    print("starting shrink_and_clip...")
-    image_float = shrink_and_clip(image_float)
-    print("shrink_and_clip complete.")
+
+def run_pipeline(path: str, input_profile, config, calibration_input_file, offsets_file, output_folder) -> None:
+    """
+    fix_color
+    white_balance
+    camera_calibrate
+    center
+    shrink_and_clip
+    srgb_and_corners
+    """
+    filename = os.path.basename(path)
+    full_save_path_no_extension = os.path.join(output_folder, filename).split(".tif")[0]
+
+    # path_f = scanner_refl_fix(path)
+    # image_f_pp = cctiff(input_profile, path_f, output_folder)
+    image_f_pp = cctiff(input_profile, "/Users/paranada/Pictures/pokemon-tcg/clean/hl-clean/hl102-groudon-clean_f.tif", output_folder)
+
+    # filename = os.path.basename(image_f_pp)
+    # full_save_path_no_extension = os.path.join(save_path, filename).split(".tif")[0]
+    image = cv.imread(image_f_pp, cv.IMREAD_UNCHANGED)
+    is_16bit = isinstance(image[0, 0, 0], np.uint16)
+    scalar = 65535 if is_16bit else 255
+    image_float = image / scalar
+    image_float **= PROPHOTO_GAMMA
+
+    # convert BGR->RGB
+    image_float = image_float[..., ::-1]
+
+    image_float = white_balance(image_float, config["white_point_xyz"])
+
+    # convert RGB->BGR
+    image_float = image_float[..., ::-1]
+
+    image_test = image_float ** (1 / PROPHOTO_GAMMA)
+    image_test *= scalar
+    dst = np.uint16(image_test) if is_16bit else np.uint8(image_test)
+    full_output_path = full_save_path_no_extension + "-mh_wb scaled 1.05.tif"
+    cv.imwrite(
+        full_output_path, dst,
+        params=[cv.IMWRITE_TIFF_XDPI, 1600, cv.IMWRITE_TIFF_YDPI, 1600, cv.IMWRITE_TIFF_COMPRESSION, COMPRESSION_NONE])
+
+    # TODO use xy_offsets here, but for now all cards of interest use 0,0
+    image_float = center_combined(image_float, offsets_file, calibration_input_file, config["lower_hsv"], config["upper_hsv"])
+
+    image_float = shrink_and_clip(image_float, config["black_point_percentage"], config["gamma"])
 
     image_float **= 1 / PROPHOTO_GAMMA
     image_float *= scalar
     dst = np.uint16(image_float) if is_16bit else np.uint8(image_float)
-    full_output_path = full_save_path_no_extension + "-mh_final.tif"
+    full_output_path = full_save_path_no_extension + "-mh_TEST-config.tif"
     cv.imwrite(
         full_output_path, dst,
         params=[cv.IMWRITE_TIFF_XDPI, 295, cv.IMWRITE_TIFF_YDPI, 295, cv.IMWRITE_TIFF_COMPRESSION, COMPRESSION_NONE])
 
     srgb_and_corners_pipeline(full_output_path, output_folder)
+    # cctiff_srgb(full_output_path)
 
     os.remove(full_output_path)
+
+
+def parse_and_validate(args):
+    ret = {}
+    if args.expansion and args.holo_type:
+        ret |= get_config(args.expansion, args.holo_type)
+    elif not args.expansion and not args.holo_type:
+        # TODO: allow for defining all config through command-line. maybe.
+        pass
+    else:
+        raise ValueError("if either expansion or holo_type is defined, both must be present")
+
+    if args.src_wp:
+        source_wp_xyz = np.array(args.src_wp.split(","), dtype=np.float_)
+        if len(source_wp_xyz) != 3:
+            raise ValueError("source white point must be given as X,Y,Z")
+        ret["white_point_xyz"] = source_wp_xyz
+
+    print("config", ret)
+
+    config_keys = ("xy_offset", "white_point_xyz", "black_point_percentage", "gamma", "lower_hsv", "upper_hsv")
+    for key in config_keys:
+        if key not in ret:
+            raise ValueError(key + " must be present")
+
+    return ret
 
 
 if __name__ == "__main__":
@@ -180,6 +217,16 @@ if __name__ == "__main__":
         type=str,
         nargs="+",
         help="path or list of paths to an image.")
+    parser.add_argument(
+        "-e",
+        dest="expansion",
+        type=str,
+        help="expansion abbreviation")
+    parser.add_argument(
+        "-t",
+        dest="holo_type",
+        type=str,
+        help="holo type (one of nonholo, holo, ex, shattered)")
     parser.add_argument(
         "-i", dest="calibration_input_file", type=str,
         help="input file that describes a calibration. for use only with -c",
@@ -200,12 +247,9 @@ if __name__ == "__main__":
         "-s",
         dest="src_wp",
         type=str,
-        help="source white point as X,Y,Z (scaled to 1)",
-        required=True)
+        help="source white point as X,Y,Z (scaled to 1). overwrites any config found by specifying -e & -t")
     args = parser.parse_args()
-    source_wp_xyz = np.array(args.src_wp.split(","), dtype=np.float_)
-    if len(source_wp_xyz) != 3:
-        raise ValueError("source white point must be given as X,Y,Z")
+    config = parse_and_validate(args)
     paths = []
     for i in args.path:
         image_path = glob.glob(i)
@@ -214,5 +258,5 @@ if __name__ == "__main__":
         else:
             print(f"{i} is not a valid path, skipping")
     for image_path in paths:
-        run_pipeline(image_path, args.input_profile, source_wp_xyz, args.calibration_input_file, args.offsets_file,
+        run_pipeline(image_path, args.input_profile, config, args.calibration_input_file, args.offsets_file,
                      args.output_folder)

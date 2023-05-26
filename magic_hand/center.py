@@ -10,6 +10,7 @@ from collections import Counter
 import glob
 import os
 
+from config import LOWER_HSV_EX_NONHOLO, UPPER_HSV_EX_NONHOLO
 import cv2 as cv
 import numpy as np
 
@@ -22,31 +23,6 @@ CONFIG_SCALE_FUDGE_FACTOR = 5699/5692
 COMPRESSION_NONE = 1
 
 PROPHOTO_GAMMA = 1.80078125
-# all HSV values are from border on ProPhoto g1.8 EX card "as-encoded" RGB values
-# (231, 224, 105) -> np.array([56.67/2, 54.55/100*255, 90.59/100*255]) dark yellow, bottom
-# HSV 57.3 61,2 87.2 EX border dark yellow again
-# (220, 226, 160) -> np.array([57.39/2, 30.13/100*255, 89.8/100*255]) pale yellow
-LOWER_HSV_EX_NONHOLO = np.array([51 / 2, 25 / 100 * 255, 80 / 100 * 255])
-UPPER_HSV_EX_NONHOLO = np.array([61 / 2, 64 / 100 * 255, 100 / 100 * 255])
-
-# for Wigglytuff ex HL
-# 135 142 145 (bottom) -> 200.7 7.3 57.0
-# 108 117 123 (right, left)
-# 97 105 109 (right) -> 200.5 10.6 42.7
-# 118 126 131 or 122 131 135 (top) -> 201.5 10.2 51.5 or 200.7 9.9 53.1
-# 139 137 129 (inner bottom left) -> 48.7 6.7 54.4
-# 135 138 143 (inner bottom by weakness) -> 218.8 5.8 56.2
-
-# let's go with HSV 200 8.5 55, 193-207 5-12.5 40-64
-LOWER_HSV_EX_EX = np.array([193 / 2, 5 / 100 * 255, 40 / 100 * 255])
-UPPER_HSV_EX_EX = np.array([207 / 2, 12.5 / 100 * 255, 64 / 100 * 255])
-
-# Wizards yellow: 176 163 39 -> [54.31 / 2, 77.84 / 100 * 255, 69.02 / 100 * 255]
-LOWER_HSV_WIZARDS = np.array([49.31 / 2, 72.84 / 100 * 255, 64.02 / 100 * 255])
-UPPER_HSV_WIZARDS = np.array([59.31 / 2, 82.84 / 100 * 255, 74.02 / 100 * 255])
-
-LOWER_HSV = LOWER_HSV_EX_NONHOLO
-UPPER_HSV = UPPER_HSV_EX_NONHOLO
 
 TOP_BORDER_AREA = np.intp(1 / 3 * CONFIG_IMAGE_DPI)
 # empirical value is 1.36; should be a bit higher than that. 1.43 is the normal ratio so should be much lower than that.
@@ -126,7 +102,17 @@ def get_thresholded_border(image_8, lower_hsv, upper_hsv):
     # having the V window lower thresh be low so that the border is as close to the inner border as possible
     # produces best results
 
-    thresholded_border = cv.inRange(hsv_image, lower_hsv, upper_hsv)
+    print("lower_hsv", lower_hsv)
+    print("upper_hsv", upper_hsv)
+    if len(lower_hsv.shape) == 1:
+        thresholded_border = cv.inRange(hsv_image, lower_hsv, upper_hsv)
+    else:
+        # There should be a loopless way to do this, but I don't foresee len > 2 so I don't care rn.
+        thresholded_border = cv.inRange(hsv_image, lower_hsv[0], upper_hsv[0])
+        i = 1
+        while i < len(lower_hsv.shape):
+            thresholded_border |= cv.inRange(hsv_image, lower_hsv[i], upper_hsv[i])
+            i += 1
 
     # TODO: this works sometimes but other times not robust and fills too much, destroying border info.
     # consider replacing with just morphologyEx?
@@ -134,9 +120,9 @@ def get_thresholded_border(image_8, lower_hsv, upper_hsv):
 
     thresholded_border = cv.morphologyEx(thresholded_border, cv.MORPH_CLOSE, None, thresholded_border, iterations=4)
 
-    # cv.imshow("binarized, thresholded from hsv", thresholded_border)
-    # cv.waitKey(0)
-    # cv.destroyAllWindows()
+    cv.imshow("binarized, thresholded from hsv", thresholded_border)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
     return thresholded_border
 
 
@@ -192,7 +178,7 @@ def get_y_offset(rect_w, rect_h):
         hw_ratio = rect_w / rect_h
     # 1.43 is "normal" h/w ratio
     # 1.36 is "short" e-reader strip h/w ratio
-    # print("rotated rect w, h, ratio", rect_w, rect_h, hw_ratio)
+    print("rotated rect w, h, ratio", rect_w, rect_h, hw_ratio)
 
     if hw_ratio < EX_SHORT_STRIP_HW_RATIO_THRESHOLD:
         return Y_OFFSET_FOR_SHORT_STRIP
@@ -324,9 +310,20 @@ def find_inner_edges_ransac(thresholded_border, shape):
     return result
 
 
-def find_exact_corners(image_8):
-    thresholded_border = get_thresholded_border(image_8, LOWER_HSV, UPPER_HSV)
-    return find_inner_edges_ransac(thresholded_border, image_8.shape)
+def find_exact_corners(image_8, lower_hsv=LOWER_HSV_EX_NONHOLO, upper_hsv=UPPER_HSV_EX_NONHOLO):
+    thresholded_border = get_thresholded_border(image_8, lower_hsv, upper_hsv)
+
+    exact_corners = find_inner_edges_ransac(thresholded_border, image_8.shape)
+
+    exact_corners_ints = np.array(exact_corners, dtype=np.int32)
+    # print("exact_corners_ints", exact_corners_ints)
+    for i in range(0, len(exact_corners_ints)):
+        cv.line(image_8, exact_corners_ints[i - 1], exact_corners_ints[i], (0, 0, 255), 5, cv.LINE_AA)
+    cv.imshow("find_inner_edges_ransac lines on pic", image_8)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+    return exact_corners
 
 
 def center_pipeline(img_file, save_path):
@@ -364,6 +361,7 @@ def center_pipeline(img_file, save_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="find center of an undistorted card, and Euclidean transform accordingly.")
+    # TODO: support passing in lower/upper hsv
     parser.add_argument(
         "path",
         metavar="input_image",
