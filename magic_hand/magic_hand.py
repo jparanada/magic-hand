@@ -123,7 +123,7 @@ def center_combined(image_float, offsets_file, calibration_input_file, lower_hsv
     return cv.warpPerspective(undistorted_image_in_large_area, combined_matrix, (CONFIG_FINAL_W, CONFIG_FINAL_H), flags=cv.INTER_LINEAR)
 
 
-def run_pipeline(path: str, input_profile, config, calibration_input_file, offsets_file, output_folder) -> None:
+def run_pipeline(path: str, input_profile, config, calibration_input_file, offsets_file, output_folder, is_quick) -> None:
     """
     fix_color
     white_balance
@@ -135,9 +135,9 @@ def run_pipeline(path: str, input_profile, config, calibration_input_file, offse
     filename = os.path.basename(path)
     full_save_path_no_extension = os.path.join(output_folder, filename).split(".tif")[0]
 
-    # path_f = scanner_refl_fix(path)
-    # image_f_pp = cctiff(input_profile, path_f, output_folder)
-    image_f_pp = cctiff(input_profile, "/Users/paranada/Pictures/pokemon-tcg/clean/hl-clean/hl102-groudon-clean_f.tif", output_folder)
+    path_f = path if is_quick else scanner_refl_fix(path)
+
+    image_f_pp = cctiff(input_profile, path_f, output_folder)
 
     # filename = os.path.basename(image_f_pp)
     # full_save_path_no_extension = os.path.join(save_path, filename).split(".tif")[0]
@@ -158,7 +158,7 @@ def run_pipeline(path: str, input_profile, config, calibration_input_file, offse
     image_test = image_float ** (1 / PROPHOTO_GAMMA)
     image_test *= scalar
     dst = np.uint16(image_test) if is_16bit else np.uint8(image_test)
-    full_output_path = full_save_path_no_extension + "-mh_wb scaled 1.05.tif"
+    full_output_path = full_save_path_no_extension + "-mh_wb.tif"
     cv.imwrite(
         full_output_path, dst,
         params=[cv.IMWRITE_TIFF_XDPI, 1600, cv.IMWRITE_TIFF_YDPI, 1600, cv.IMWRITE_TIFF_COMPRESSION, COMPRESSION_NONE])
@@ -171,7 +171,7 @@ def run_pipeline(path: str, input_profile, config, calibration_input_file, offse
     image_float **= 1 / PROPHOTO_GAMMA
     image_float *= scalar
     dst = np.uint16(image_float) if is_16bit else np.uint8(image_float)
-    full_output_path = full_save_path_no_extension + "-mh_TEST-config.tif"
+    full_output_path = full_save_path_no_extension + "-mh.tif"
     cv.imwrite(
         full_output_path, dst,
         params=[cv.IMWRITE_TIFF_XDPI, 295, cv.IMWRITE_TIFF_YDPI, 295, cv.IMWRITE_TIFF_COMPRESSION, COMPRESSION_NONE])
@@ -244,6 +244,10 @@ if __name__ == "__main__":
         help="input icc profile",
         required=True)
     parser.add_argument(
+        "-q", "--quick",
+        action="store_true",
+        help="enable quick mode. this skips the call to srf.")
+    parser.add_argument(
         "-s",
         dest="src_wp",
         type=str,
@@ -259,4 +263,4 @@ if __name__ == "__main__":
             print(f"{i} is not a valid path, skipping")
     for image_path in paths:
         run_pipeline(image_path, args.input_profile, config, args.calibration_input_file, args.offsets_file,
-                     args.output_folder)
+                     args.output_folder, args.quick)
