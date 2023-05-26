@@ -15,7 +15,6 @@ import numpy as np
 HL_WP_NONHOLO = np.array([0.767805, 0.798657, 0.640379])
 HL_WP_HOLO = np.array([0.689367, 0.713257, 0.587346])
 
-
 # all HSV values are from border on ProPhoto g1.8 "as-encoded" RGB values, after white-balancing
 # To get these, can open in GIMP, keeping the profile as sRGB, and use eyedropper to get HSV tuples.
 
@@ -25,17 +24,17 @@ HL_WP_HOLO = np.array([0.689367, 0.713257, 0.587346])
 LOWER_HSV_EX_NONHOLO = np.array([51 / 2, 25 / 100 * 255, 80 / 100 * 255])
 UPPER_HSV_EX_NONHOLO = np.array([61 / 2, 64 / 100 * 255, 100 / 100 * 255])
 
-# for Wigglytuff ex HL
-# 135 142 145 (bottom) -> 200.7 7.3 57.0
-# 108 117 123 (right, left)
-# 97 105 109 (right) -> 200.5 10.6 42.7
-# 118 126 131 or 122 131 135 (top) -> 201.5 10.2 51.5 or 200.7 9.9 53.1
-# 139 137 129 (inner bottom left) -> 48.7 6.7 54.4
-# 135 138 143 (inner bottom by weakness) -> 218.8 5.8 56.2
+# for Kyogre ex HL pp wb
+# bottom left 210 10 72
+# bottom 212 11.5 68
+# lower right 209.5 13.4 52.5
+# upper left 212.6 13 68.7
+# top 212 14 58
+# 210 5-17 50-74
 
 # let's go with HSV 200 8.5 55, 193-207 5-12.5 40-64
-LOWER_HSV_EX_EX = np.array([193 / 2, 5 / 100 * 255, 40 / 100 * 255])
-UPPER_HSV_EX_EX = np.array([207 / 2, 12.5 / 100 * 255, 64 / 100 * 255])
+LOWER_HSV_EX_EX = np.array([203 / 2, 9 / 100 * 255, 40 / 100 * 255])
+UPPER_HSV_EX_EX = np.array([217 / 2, 17 / 100 * 255, 70 / 100 * 255])
 
 # 204 10 67
 # 71 4 100
