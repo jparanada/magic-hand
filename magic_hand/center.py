@@ -102,8 +102,6 @@ def get_thresholded_border(image_8, lower_hsv, upper_hsv):
     # having the V window lower thresh be low so that the border is as close to the inner border as possible
     # produces best results
 
-    print("lower_hsv", lower_hsv)
-    print("upper_hsv", upper_hsv)
     if len(lower_hsv.shape) == 1:
         thresholded_border = cv.inRange(hsv_image, lower_hsv, upper_hsv)
     else:
@@ -120,9 +118,9 @@ def get_thresholded_border(image_8, lower_hsv, upper_hsv):
 
     thresholded_border = cv.morphologyEx(thresholded_border, cv.MORPH_CLOSE, None, thresholded_border, iterations=4)
 
-    cv.imshow("binarized, thresholded from hsv", thresholded_border)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
+    # cv.imshow("binarized, thresholded from hsv", thresholded_border)
+    # cv.waitKey(0)
+    # cv.destroyAllWindows()
     return thresholded_border
 
 
@@ -319,9 +317,9 @@ def find_exact_corners(image_8, lower_hsv=LOWER_HSV_EX_NONHOLO, upper_hsv=UPPER_
     # print("exact_corners_ints", exact_corners_ints)
     for i in range(0, len(exact_corners_ints)):
         cv.line(image_8, exact_corners_ints[i - 1], exact_corners_ints[i], (0, 0, 255), 5, cv.LINE_AA)
-    cv.imshow("find_inner_edges_ransac lines on pic", image_8)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
+    # cv.imshow("find_inner_edges_ransac lines on pic", image_8)
+    # cv.waitKey(0)
+    # cv.destroyAllWindows()
 
     return exact_corners
 

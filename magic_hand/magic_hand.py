@@ -63,13 +63,13 @@ def run_pipeline(path: str, input_profile, config, calibration_input_file, offse
     # convert RGB->BGR
     image_float = image_float[..., ::-1]
 
-    image_test = image_float ** (1 / PROPHOTO_GAMMA)
-    image_test *= scalar
-    dst = np.uint16(image_test) if is_16bit else np.uint8(image_test)
-    full_output_path = full_save_path_no_extension + "-mh_wb.tif"
-    cv.imwrite(
-        full_output_path, dst,
-        params=[cv.IMWRITE_TIFF_XDPI, 1600, cv.IMWRITE_TIFF_YDPI, 1600, cv.IMWRITE_TIFF_COMPRESSION, COMPRESSION_NONE])
+    # image_test = image_float ** (1 / PROPHOTO_GAMMA)
+    # image_test *= scalar
+    # dst = np.uint16(image_test) if is_16bit else np.uint8(image_test)
+    # full_output_path = full_save_path_no_extension + "-mh_wb.tif"
+    # cv.imwrite(
+    #     full_output_path, dst,
+    #     params=[cv.IMWRITE_TIFF_XDPI, 1600, cv.IMWRITE_TIFF_YDPI, 1600, cv.IMWRITE_TIFF_COMPRESSION, COMPRESSION_NONE])
 
     # TODO use xy_offsets here, but for now all cards of interest use 0,0
     image_float = center_combined(image_float, offsets_file, calibration_input_file, config["lower_hsv"],
