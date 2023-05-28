@@ -33,8 +33,8 @@ UPPER_HSV_EX_NONHOLO = np.array([61 / 2, 64 / 100 * 255, 100 / 100 * 255])
 # 210 5-17 50-74
 
 # let's go with HSV 200 8.5 55, 193-207 5-12.5 40-64
-LOWER_HSV_EX_EX = np.array([203 / 2, 9 / 100 * 255, 40 / 100 * 255])
-UPPER_HSV_EX_EX = np.array([217 / 2, 17 / 100 * 255, 70 / 100 * 255])
+LOWER_HSV_EX_EX = np.array([203 / 2, 7 / 100 * 255, 40 / 100 * 255])
+UPPER_HSV_EX_EX = np.array([217 / 2, 20 / 100 * 255, 70 / 100 * 255])
 
 # 204 10 67
 # 71 4 100
