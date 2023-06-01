@@ -57,7 +57,7 @@ config = {
         "nonholo": {
             "white_point_xyz": HL_WP_NONHOLO,
             "black_point_percentage": 17,
-            "gamma": 0.76,
+            "gamma": 0.78,
             "lower_hsv": LOWER_HSV_EX_NONHOLO,
             "upper_hsv": UPPER_HSV_EX_NONHOLO
         },

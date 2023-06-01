@@ -124,7 +124,7 @@ def resize_opencv_bicubic(image: np.ndarray):
     arr_out = cv.resize(image, (CONFIG_OUTPUT_DIMS[0], CONFIG_OUTPUT_DIMS[1]), interpolation=cv.INTER_CUBIC)
     arr_out = np.clip(arr_out, 0., 1., out=arr_out)
     # luminosity sharpening second pass. may have to re-tune params if you change the interpolation method
-    arr_out = sharpen_luminosity(arr_out, radius=0.55, amount=0.4, threshold=1.0)
+    arr_out = sharpen_luminosity(arr_out, radius=0.45, amount=0.4, threshold=1.0)
     return arr_out
 
 
