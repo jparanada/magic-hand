@@ -80,7 +80,7 @@ def white_balance(linearized_rgb, illuminant_src):
         [Sr*Yr, Sg*Yg, Sb*Yb],
         [Sr*Zr, Sg*Zg, Sb*Zb]
     ])
-    print("my matrix_rgb_to_xyz\n", matrix_rgb_to_xyz)
+    # print("my matrix_rgb_to_xyz\n", matrix_rgb_to_xyz)
     # bruce_matrix_rgb_to_xyz = np.array([
     #     [0.7976749, 0.1351917, 0.0313534],
     #     [0.2880402, 0.7118741, 0.0000857],
@@ -100,18 +100,13 @@ def white_balance(linearized_rgb, illuminant_src):
             transform=chromatic_adaptation_transform,
         )
         XYZ = colour.algebra.vector_dot(M_CAT, XYZ)
+        # print(f"M_CAT for {chromatic_adaptation_transform}\n", M_CAT)
     white_balanced_xyz = XYZ
     # print("XYZ post-transform\n", white_balanced_xyz)
 
     (h, w, _) = np.shape(white_balanced_xyz)
     matrix_xyz_to_rgb = np.linalg.inv(matrix_rgb_to_xyz)
-    print("my matrix_xyz_to_rgb\n", matrix_xyz_to_rgb)
-    # bruce_matrix_xyz_to_rgb = np.array([
-    #     [1.3459433, -0.2556075, -0.0511118],
-    #     [-0.5445989, 1.5081673, 0.0205351],
-    #     [0.0000000, 0.0000000, 1.2118128]
-    # ])
-    # print("bruce_matrix_xyz_to_rgb\n", bruce_matrix_xyz_to_rgb)
+    # print("my matrix_xyz_to_rgb\n", matrix_xyz_to_rgb)
 
     white_balanced_rgb = colour.algebra.vector_dot(
         matrix_xyz_to_rgb,
