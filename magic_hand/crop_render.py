@@ -13,7 +13,7 @@ import subprocess
 from PIL import Image
 
 
-MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/goods/card_mask_rounded_4.761905_radius.png")
+MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/goods/card_mask_rounded_radius_34.91px.png")
 RGB_WHITE = (255, 255, 255)
 
 
@@ -35,7 +35,7 @@ def crop_render(image_path, output_folder):
     card = Image.open(image_path)
     w, h = card.size
     if w == 1024 and h == 1024:
-        card = card.crop((145, 0, 879, 1024))
+        card = card.crop((145, 0, 878, 1024))
     alpha = Image.open(MASK_PATH).convert("L")
     card.putalpha(alpha)
 
