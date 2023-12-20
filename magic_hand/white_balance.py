@@ -25,13 +25,13 @@ REC2020_WP = np.array([0.95045471, 1.0, 1.08905029])
 COMPRESSION_NONE = 1
 
 """
-% xicclu -s65535 -ia -py /Users/paranada/profiles/pokemon-colors-202-patch/2022-01-24_v850_202patch_qm_ax_ua.icc
+% xicclu -s65535 -ia -py /Users/paranada/profiles/pokemon-colors-202-patch/2022-01-24_v850_202patch_qm_al_ua.icc
 55920 56366 54847
 55920.000000 56366.000000 54847.000000 [RGB] -> Lut -> 0.825164 0.345817 0.358748 [Yxy]
 """
 def white_balance(linearized_rgb, illuminant_src):
     # my own measured marill wp in scanner profile RGB: 55994 56437 54901
-    # xicclu -s65535 -ia -px /Users/paranada/profiles/pokemon-colors-202-patch/2022-01-24_v850_202patch_qm_ax_ua.icc
+    # xicclu -s65535 -ia -px /Users/paranada/profiles/pokemon-colors-202-patch/2022-01-24_v850_202patch_qm_al_ua.icc
     # 55994.000000 56437.000000 54901.000000 [RGB] -> Lut -> 0.796966 0.825067 0.681396 [XYZ]
 
     # 1. use colprof -ua, attach that profile to your image, relcol or abscol convert to desired working space
@@ -133,7 +133,8 @@ def white_balance_pipeline(img_file, source_wp_xyz, save_path):
     image = cv.pow(image/scalar, PROPHOTO_GAMMA)
 
     # convert BGR->RGB
-    image = image[..., ::-1]
+    # start at channel 2 to omit alpha (channel 3) if it's there
+    image = image[..., 2::-1]
 
     image = white_balance(image, source_wp_xyz)
 
