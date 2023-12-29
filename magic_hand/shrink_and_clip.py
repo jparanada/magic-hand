@@ -195,7 +195,7 @@ def shrink_and_clip_pipeline(img_file: str, save_path: str):
     image_float = image / scalar
     image_float **= PROPHOTO_GAMMA
 
-    shrink_and_clip(image_float)
+    image_float = shrink_and_clip(image_float)
 
     # we're writing the file out just to do color conversion on it, feelsbadman
     # since pillow (and therefore ImageCms) doesn't support 3-channel 16-bit images
