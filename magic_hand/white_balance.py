@@ -35,7 +35,7 @@ def white_balance(linearized_rgb, illuminant_src):
     # 55994.000000 56437.000000 54901.000000 [RGB] -> Lut -> 0.796966 0.825067 0.681396 [XYZ]
 
     # 1. use colprof -ua, attach that profile to your image, relcol or abscol convert to desired working space
-    # (call this the WS profile)
+    # (e.g. ProPhoto... call this the WS profile)
     # relcol vs abscol won't matter there (it'd be identical--that's what `-ua` does). export the image w/NO profile
     # attached--this is important since GIMP only reads Pixel values with eyedropper correctly if it thinks the image is
     # sRGB.
