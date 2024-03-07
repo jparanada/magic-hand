@@ -14,7 +14,8 @@ import argparse
 import cv2 as cv
 import numpy as np
 
-CONFIG_SCANNER_REFL_FIX_CALIBRATION_PATH = "/Users/paranada/icc_profiles/scanner/scanner_cal.txt"
+# TODO: make this command-line configurable
+CONFIG_SCANNER_REFL_FIX_CALIBRATION_PATH = "/Users/paranada/srf_targets/v850/scanner_cal_v850_epson_scan_20230726_y_values_M2.txt"
 
 PROPHOTO_GAMMA = 1.80078125
 SCALAR_16_BIT = 65535
@@ -25,16 +26,19 @@ SCALAR_8_BIT = 255
 # IT IS VERY IMPORTANT THAT THE TIFF BE TAGGED WITH ITS CORRECT DPI, since scanner_refl_fix needs to know the physical
 # size of the image to work!
 def scanner_refl_fix(path: str) -> str:
+    # TODO: this suffix only makes sense if using the Epson V850 scanner model
+    out_path = "_fv850".join([os.path.splitext(path)[0], ".tif"])
     result = subprocess.run([
         "scanner_refl_fix",
         "-C", CONFIG_SCANNER_REFL_FIX_CALIBRATION_PATH,
-        "-B", path
+        path,
+        out_path
     ])
-    return "_f".join([os.path.splitext(path)[0], ".tif"]) if result.returncode == 0 else None
+    return out_path if result.returncode == 0 else None
 
 
 """
-cctiff -N -ir ~/profiles/pokemon-colors-202-patch/2022-01-24_v850_202patch_qm_ax_ua.icc -ir ~/common_profiles/LargeRGB-elle-V2-g18.icc in out
+cctiff -N -ir ~/profiles/pokemon-colors-202-patch/2022-01-24_v850_202patch_qm_al_ua.icc -ir ~/common_profiles/LargeRGB-elle-V2-g18.icc in out
 """
 def cctiff(input_profile: str, input_image: str, output_path) -> str:
     input_path = Path(input_image)
