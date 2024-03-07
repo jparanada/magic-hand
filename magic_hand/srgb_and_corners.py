@@ -12,8 +12,11 @@ import subprocess
 
 from PIL import Image
 
+# 734 w
+# MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/goods/card_mask_rounded_4.761905_radius.png")
 
-MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/goods/card_mask_rounded_4.761905_radius.png")
+# 733 w
+MASK_PATH = os.path.expanduser("~/Pictures/pokemon-tcg/goods/card_mask_rounded_radius_34.91px.png")
 RGB_WHITE = (255, 255, 255)
 
 
@@ -41,14 +44,16 @@ def cctiff_srgb(path: str) -> str:
     return output_path if result.returncode == 0 else None
 
 
-def srgb_and_corners_pipeline(image_path, output_folder):
+def srgb_and_corners_pipeline(image_path, output_folder, should_skip_rounding=False):
     image_path_srgb = cctiff_srgb(image_path)
 
     # We can open this 3-channel 16 bpc tiff okay in pillow, it just auto-converts to 8 bpc.
     # This is fine because we are going to export as 8 bpc anyway.
     card = Image.open(image_path_srgb)
-    alpha = Image.open(MASK_PATH).convert("L")
-    card.putalpha(alpha)
+    alpha = None
+    if not should_skip_rounding:
+        alpha = Image.open(MASK_PATH).convert("L")
+        card.putalpha(alpha)
 
     filename = os.path.basename(image_path_srgb)
     full_save_path_no_extension = os.path.join(output_folder, os.path.splitext(filename)[0])
@@ -59,7 +64,7 @@ def srgb_and_corners_pipeline(image_path, output_folder):
     # https://stackoverflow.com/questions/9166400/convert-rgba-png-to-rgb-with-pil
     card_for_jpg = Image.new("RGB", card.size, RGB_WHITE)
     # Could use card.getchannel("A") for the mask if we didn't already have the alpha channel
-    card_for_jpg.paste(card, mask=alpha)
+    card_for_jpg.paste(im=card, box=(0, 0), mask=alpha)
     # https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#jpeg
     card_for_jpg.save(full_save_path_no_extension + ".jpg", quality=75, subsampling="4:4:4")
 
@@ -81,6 +86,11 @@ if __name__ == "__main__":
         type=str,
         help="output folder for shrunk and cropped images",
         required=True)
+    parser.add_argument(
+        "-r", "--skip-corner-rounding",
+        dest="should_skip_rounding",
+        action="store_true",
+        help="skip corner rounding")
     args = parser.parse_args()
     if not os.path.isdir(args.output_folder):
         raise ValueError("Output path is not a folder")
@@ -94,6 +104,6 @@ if __name__ == "__main__":
     for i in paths:
         i = os.path.abspath(i)
         if os.path.exists(i):
-            srgb_and_corners_pipeline(i, args.output_folder)
+            srgb_and_corners_pipeline(i, args.output_folder, args.should_skip_rounding)
         else:
             raise ValueError("{} does not exist".format(i))
