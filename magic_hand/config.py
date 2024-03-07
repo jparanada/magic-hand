@@ -12,11 +12,44 @@ import os
 import numpy as np
 
 
+UNCROPPED_OUTPUT_WIDTH = 754
+UNCROPPED_OUTPUT_HEIGHT = 1044
+OUTPUT_DIMS = (UNCROPPED_OUTPUT_WIDTH, UNCROPPED_OUTPUT_HEIGHT)
+
+
+def convert_hsv_to_opencv_hsv(hsv):
+    return np.array([hsv[0] / 2, hsv[1] / 100 * 255, hsv[2] / 100 * 255])
+
+
 HL_WP_NONHOLO = np.array([0.767805, 0.798657, 0.640379])
 HL_WP_HOLO = np.array([0.689367, 0.713257, 0.587346])
 
+TMB_WP_NONHOLO = np.array([0.780589, 0.806007, 0.674934])
+# TMBM2_WP_NONHOLO = np.array([0.764853, 0.795969, 0.617851])
+# 0.756714 0.788797 0.611248
+
+# wp for falkner's fearow
+TMBM2_WP_NONHOLO = np.array([0.756714, 0.788797, 0.611248])
+
+TMB_WP_NONHOLO_MANTINE = np.array([0.836413, 0.844644, 0.797932])
+
+# RGB 59392 59838 59607
+# SV_WP_NONHOLO = np.array([0.809378, 0.845665, 0.695600])
+# RGB 57819 57887 58937
+SV_WP_NONHOLO = np.array([0.770666, 0.799261, 0.681583])
+SV_WP_HOLO = 0.825 * SV_WP_NONHOLO
+
 # all HSV values are from border on ProPhoto g1.8 "as-encoded" RGB values, after white-balancing
 # To get these, can open in GIMP, keeping the profile as sRGB, and use eyedropper to get HSV tuples.
+
+# TMB HSVs
+# left 57.4 69.6 89.1
+# top right 52.5 74.0 79.2
+# right 51.4 74.3 80.1
+# bottom left 51.1 75.0 83.4
+# bottom 57.8 67.3 91.4
+LOWER_TMB_HSV_NONHOLO = np.array([48 / 2, 64 / 100 * 255, 78 / 100 * 255])
+UPPER_TMB_HSV_NONHOLO = np.array([61 / 2, 78 / 100 * 255, 94 / 100 * 255])
 
 # (231, 224, 105) -> np.array([56.67/2, 54.55/100*255, 90.59/100*255]) dark yellow, bottom
 # HSV 57.3 61,2 87.2 EX border dark yellow again
@@ -50,6 +83,9 @@ UPPER_HSV_EX_REGI_2 = np.array([360 / 2, 12 / 100 * 255, 100 / 100 * 255])
 LOWER_HSV_WIZARDS = np.array([49.31 / 2, 72.84 / 100 * 255, 64.02 / 100 * 255])
 UPPER_HSV_WIZARDS = np.array([59.31 / 2, 82.84 / 100 * 255, 74.02 / 100 * 255])
 
+# CC is TCG Classic
+LOWER_HSV_CC = convert_hsv_to_opencv_hsv([50.8, 48.4, 81.8])
+UPPER_HSV_CC = convert_hsv_to_opencv_hsv([60.8, 58.4, 91.8])
 
 config = {
     "hl": {
@@ -84,6 +120,40 @@ config = {
             "upper_hsv": np.array([UPPER_HSV_EX_REGI, UPPER_HSV_EX_REGI_2])
         },
     },
+    "tmb": {
+        # "xy_offset": np.array([59, 64]),  # for tropical breeze
+        # "xy_offset": np.array([14, -1084]),  # for switch bc my edge detection uses mode :(
+        "xy_offset": np.array([125, -361]),
+        "nonholo": {
+            "white_point_xyz": TMB_WP_NONHOLO,
+            "black_point_percentage": 7,
+            "gamma": 0.87,
+            "lower_hsv": LOWER_TMB_HSV_NONHOLO,
+            "upper_hsv": UPPER_TMB_HSV_NONHOLO
+        }
+    },
+    "tmbm2": {
+        "xy_offset": np.array([125, -361]),
+        "nonholo": {
+            "white_point_xyz": TMBM2_WP_NONHOLO,
+            "black_point_percentage": 7,
+            "gamma": 0.87,
+            "lower_hsv": LOWER_TMB_HSV_NONHOLO,
+            "upper_hsv": UPPER_TMB_HSV_NONHOLO
+        },
+        "scale": 5709/5692
+    },
+    "cc-normal": {
+        "xy_offset": np.array([0, 0]),
+        "holo": {
+            "first_sharpen": False,
+            "white_point_xyz": SV_WP_HOLO,
+            "black_point_percentage": 20,
+            "gamma": 0.705,
+            "lower_hsv": LOWER_HSV_CC,
+            "upper_hsv": UPPER_HSV_CC
+        }
+    }
 }
 
 
