@@ -335,7 +335,8 @@ def embed_in_target_area(img, offsets):
     x_offset = roi_x - target_x
     y_offset = roi_y - target_y
     (img_h, img_w, _) = np.shape(img)
-    big_img[y_offset:y_offset+img_h, x_offset:x_offset+img_w] = img
+    # only take first 3 channels, i.e. discard alpha channel if present
+    big_img[y_offset:y_offset+img_h, x_offset:x_offset+img_w] = img[..., :3:]
 
     # cv.imshow("big_img", big_img)
     # cv.waitKey(0)
@@ -445,6 +446,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-f", dest="offsets_file", type=str,
         help="file that describes offsets of the distortion target and image ROIs. for use only with -o")
+    parser.add_argument(
+        "-r", dest="rotation", type=str,
+        help="describes rotatio. one of cw, 180, or ccw (or omit entirely). for use only with -o")
     parser.add_argument(
         "-i", dest="calibration_input_file", type=str,
         help="input file that describes a calibration. for use only with -o")
