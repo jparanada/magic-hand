@@ -33,8 +33,6 @@ TMBM2_WP_NONHOLO = np.array([0.756714, 0.788797, 0.611248])
 
 TMB_WP_NONHOLO_MANTINE = np.array([0.836413, 0.844644, 0.797932])
 
-# RGB 59392 59838 59607
-# SV_WP_NONHOLO = np.array([0.809378, 0.845665, 0.695600])
 # RGB 57819 57887 58937
 SV_WP_NONHOLO = np.array([0.770666, 0.799261, 0.681583])
 SV_WP_HOLO = 0.825 * SV_WP_NONHOLO
@@ -83,9 +81,21 @@ UPPER_HSV_EX_REGI_2 = np.array([360 / 2, 12 / 100 * 255, 100 / 100 * 255])
 LOWER_HSV_WIZARDS = np.array([49.31 / 2, 72.84 / 100 * 255, 64.02 / 100 * 255])
 UPPER_HSV_WIZARDS = np.array([59.31 / 2, 82.84 / 100 * 255, 74.02 / 100 * 255])
 
-# CC is TCG Classic
-LOWER_HSV_CC = convert_hsv_to_opencv_hsv([50.8, 48.4, 81.8])
-UPPER_HSV_CC = convert_hsv_to_opencv_hsv([60.8, 58.4, 91.8])
+# CL is TCG Classic
+LOWER_HSV_CL = convert_hsv_to_opencv_hsv([50.8, 43.4, 81.8])
+UPPER_HSV_CL = convert_hsv_to_opencv_hsv([60.8, 58.4, 91.8])
+
+# 55.7 47.8 89.0
+LOWER_HSV_CL_SWSH = convert_hsv_to_opencv_hsv([50.7, 43.8, 84.0])
+UPPER_HSV_CL_SWSH = convert_hsv_to_opencv_hsv([60.7, 53.8, 94.0])
+
+LOWER_HSV_CL_SV = convert_hsv_to_opencv_hsv([190.0, 0.0, 49.0])
+UPPER_HSV_CL_SV = convert_hsv_to_opencv_hsv([254.9, 19.0, 76.0])
+
+# a wide range here because the HS border has varying colors. but empirically this works
+LOWER_HSV_CL_HS = convert_hsv_to_opencv_hsv([48.0, 23.0, 80.0])
+UPPER_HSV_CL_HS = convert_hsv_to_opencv_hsv([68.0, 44.0, 95.0])
+
 
 config = {
     "hl": {
@@ -143,15 +153,59 @@ config = {
         },
         "scale": 5709/5692
     },
-    "cc-normal": {
+    "cl-normal": {
         "xy_offset": np.array([0, 0]),
         "holo": {
             "first_sharpen": False,
             "white_point_xyz": SV_WP_HOLO,
             "black_point_percentage": 20,
             "gamma": 0.705,
-            "lower_hsv": LOWER_HSV_CC,
-            "upper_hsv": UPPER_HSV_CC
+            "lower_hsv": LOWER_HSV_CL,
+            "upper_hsv": UPPER_HSV_CL
+        }
+    },
+    "cl-sm-trainer": {
+        "xy_offset": np.array([0, -19]),
+        "holo": {
+            "first_sharpen": False,
+            "white_point_xyz": SV_WP_HOLO,
+            "black_point_percentage": 20,
+            "gamma": 0.705,
+            "lower_hsv": LOWER_HSV_CL,
+            "upper_hsv": UPPER_HSV_CL
+        }
+    },
+    "cl-swsh-trainer": {
+        "xy_offset": np.array([0, -18]),
+        "holo": {
+            "first_sharpen": False,
+            "white_point_xyz": SV_WP_HOLO,
+            "black_point_percentage": 20,
+            "gamma": 0.705,
+            "lower_hsv": LOWER_HSV_CL_SWSH,
+            "upper_hsv": UPPER_HSV_CL_SWSH
+        }
+    },
+    "cl-sv-trainer": {
+        "xy_offset": np.array([0, -17]),
+        "holo": {
+            "first_sharpen": False,
+            "white_point_xyz": SV_WP_HOLO,
+            "black_point_percentage": 20,
+            "gamma": 0.705,
+            "lower_hsv": LOWER_HSV_CL_SV,
+            "upper_hsv": UPPER_HSV_CL_SV
+        }
+    },
+    "cl-hgss": {
+        "xy_offset": np.array([0, -17]),
+        "holo": {
+            "first_sharpen": False,
+            "white_point_xyz": SV_WP_HOLO,
+            "black_point_percentage": 20,
+            "gamma": 0.705,
+            "lower_hsv": LOWER_HSV_CL_HS,
+            "upper_hsv": UPPER_HSV_CL_HS
         }
     }
 }

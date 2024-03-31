@@ -7,15 +7,15 @@
 
 import cv2 as cv
 import numpy as np
+import skimage.transform as transform
 
 from camera_calibrate import read_offsets, embed_in_target_area, undistort, read_calibration, crop_with_offsets
 from center import find_exact_corners, find_affine_matrix_for_centering, CONFIG_FINAL_W, CONFIG_FINAL_H
-import skimage.transform as transform
 
 PROPHOTO_GAMMA = 1.80078125
 
 
-def center_combined(image_float, offsets_file, calibration_input_file, lower_hsv, upper_hsv):
+def center_combined(image_float, offsets_file, calibration_input_file, lower_hsv, upper_hsv, xy_offset):
     # Here we could just call camera_cal followed by center. However, that does two linear transforms back-to-back,
     # which slightly degrades image quality vs just doing one. If we're clever with our math we can find a single
     # perspective warp that is the composition of these two transforms (and also includes a rotation, if needed).
@@ -54,7 +54,7 @@ def center_combined(image_float, offsets_file, calibration_input_file, lower_hsv
 
     print("starting rotate_and_straighten...")
     # https://theailearner.com/tag/cv2-getperspectivetransform/
-    affine_matrix = find_affine_matrix_for_centering(exact_corners)
+    affine_matrix = find_affine_matrix_for_centering(exact_corners, xy_offset)
     tl_final = np.matmul(affine_matrix, [tl_cropped_before_affine[0], tl_cropped_before_affine[1], 1])
     tr_final = np.matmul(affine_matrix, [tr_cropped_before_affine[0], tr_cropped_before_affine[1], 1])
     br_final = np.matmul(affine_matrix, [br_cropped_before_affine[0], br_cropped_before_affine[1], 1])

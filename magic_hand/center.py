@@ -10,7 +10,7 @@ from collections import Counter
 import glob
 import os
 
-from config import LOWER_HSV_EX_NONHOLO, UPPER_HSV_EX_NONHOLO
+from config import LOWER_HSV_EX_NONHOLO, UPPER_HSV_EX_NONHOLO, UNCROPPED_OUTPUT_WIDTH, get_config
 import cv2 as cv
 import numpy as np
 
@@ -29,6 +29,8 @@ TOP_BORDER_AREA = np.intp(1 / 3 * CONFIG_IMAGE_DPI)
 EX_SHORT_STRIP_HW_RATIO_THRESHOLD = 1.39
 Y_OFFSET_FOR_SHORT_STRIP = -124
 
+HORIZONTAL_TRANSLATION_FOR_DEST_HALF_PIXEL = .5 / UNCROPPED_OUTPUT_WIDTH * CONFIG_FINAL_W
+
 """
 1. find the 4 corners of the inner quadrilateral `exact_corners`
 2. find the midpoints of this quadrilateral & get their intersection `center`
@@ -39,8 +41,8 @@ Y_OFFSET_FOR_SHORT_STRIP = -124
 
 
 def load_image(img_path):
-    image_16 = cv.imread(img_path, cv.IMREAD_UNCHANGED)
-    image_8 = cv.imread(img_path, cv.IMREAD_COLOR)
+    image_16 = cv.imread(img_path, cv.IMREAD_UNCHANGED)[..., :3]
+    image_8 = cv.imread(img_path, cv.IMREAD_COLOR)[..., :3]
 
     return image_8, image_16
 
@@ -158,10 +160,19 @@ def find_border_sobel(thresholded_border, retr_mode=cv.RETR_CCOMP, approx_mode=c
     inner_black_height = 4620
     tmp[413:413 + inner_black_height, 320:320 + inner_black_width] = 0
 
+    # y_content_start = int(138/5692 * m.shape[0])
+    # x_content_start = int(178/4134 * m.shape[1])
+    # tmp = np.zeros(m.shape, np.uint8)
+    # tmp[y_content_start:y_content_start + crop_height, x_content_start:x_content_start + crop_width] = \
+    #     m[y_content_start:y_content_start + crop_height, x_content_start:x_content_start + crop_width]
+    # # tmp[y_blackout_start:y_blackout_start + inner_black_height, x_blackout_start:x_blackout_start + inner_black_width] = 0
+    # # tmp = m
+
     contours, hierarchy = cv.findContours(tmp, retr_mode, approx_mode)
     # r = max(contours, key=cv.contourArea)
     tmp = np.zeros(m.shape, np.uint8)
     borders = cv.drawContours(tmp, contours, -1, 255, hierarchy=hierarchy)
+    # TODO: only draw when passed --verbose
     # cv.imshow("findContours", borders)
     # cv.waitKey(0)
     # cv.destroyAllWindows()
@@ -183,7 +194,7 @@ def get_y_offset(rect_w, rect_h):
     return 0
 
 
-def find_affine_matrix_for_centering(exact_corners):
+def find_affine_matrix_for_centering(exact_corners, xy_offset):
     # float32 required
     rect = cv.minAreaRect(np.array(exact_corners, np.float32))
     # print("minAreaRect", rect)
@@ -204,20 +215,24 @@ def find_affine_matrix_for_centering(exact_corners):
     affine_matrix = cv.getRotationMatrix2D(
         (mid_x, mid_y), rect[2] - 90 if rect[2] > 45 else rect[2], CONFIG_SCALE_FUDGE_FACTOR)
     # print("affine_matrix (rotation matrix)", affine_matrix)
-    x_translation = (CONFIG_FINAL_W / 2) - mid_x
-    y_translation = (CONFIG_FINAL_H / 2) - mid_y + y_offset
+    if len(xy_offset) == 2:
+        x_translation = (CONFIG_FINAL_W / 2) - mid_x + xy_offset[0]
+        y_translation = (CONFIG_FINAL_H / 2) - mid_y + xy_offset[1]
+    else:
+        x_translation = (CONFIG_FINAL_W / 2) - mid_x
+        y_translation = (CONFIG_FINAL_H / 2) - mid_y + y_offset
     # Adding the translations this way to the rotation matrix is equivalent to rotation first,
     # followed by translation.
-    affine_matrix[0, 2] += x_translation
+    affine_matrix[0, 2] += x_translation - HORIZONTAL_TRANSLATION_FOR_DEST_HALF_PIXEL
     affine_matrix[1, 2] += y_translation
     print("affine_matrix rotation-then-translation matrix", affine_matrix)
     return affine_matrix
 
 
-def rotate_and_straighten(image_16, exact_corners):
+def rotate_and_straighten(image_16, exact_corners, config):
     # The full magic_hand combines this warp with the perspective warp that precedes it, which is technically better
     # (one fewer linear interpolation). This is to test just the centering piece.
-    affine_matrix = find_affine_matrix_for_centering(exact_corners)
+    affine_matrix = find_affine_matrix_for_centering(exact_corners, config["xy_offset"])
     image_16 = cv.warpAffine(image_16, affine_matrix, (CONFIG_FINAL_W, CONFIG_FINAL_H), flags=cv.INTER_LINEAR)
 
     # cv.imshow("post-translation FINAL", image_16)
@@ -313,10 +328,11 @@ def find_exact_corners(image_8, lower_hsv=LOWER_HSV_EX_NONHOLO, upper_hsv=UPPER_
 
     exact_corners = find_inner_edges_ransac(thresholded_border, image_8.shape)
 
-    exact_corners_ints = np.array(exact_corners, dtype=np.int32)
-    # print("exact_corners_ints", exact_corners_ints)
-    for i in range(0, len(exact_corners_ints)):
-        cv.line(image_8, exact_corners_ints[i - 1], exact_corners_ints[i], (0, 0, 255), 5, cv.LINE_AA)
+    # TODO: only draw when passed --verbose
+    # exact_corners_ints = np.array(exact_corners, dtype=np.int32)
+    # # print("exact_corners_ints", exact_corners_ints)
+    # for i in range(0, len(exact_corners_ints)):
+    #     cv.line(image_8, exact_corners_ints[i - 1], exact_corners_ints[i], (0, 0, 255), 5, cv.LINE_AA)
     # cv.imshow("find_inner_edges_ransac lines on pic", image_8)
     # cv.waitKey(0)
     # cv.destroyAllWindows()
@@ -324,7 +340,7 @@ def find_exact_corners(image_8, lower_hsv=LOWER_HSV_EX_NONHOLO, upper_hsv=UPPER_
     return exact_corners
 
 
-def center_pipeline(img_file, save_path):
+def center_pipeline(img_file, config, save_path):
     filename = os.path.basename(img_file)
     full_save_path_no_extension = os.path.join(save_path, filename).split(".tif")[0]
     image_8, image_16 = load_image(img_file)
@@ -333,17 +349,9 @@ def center_pipeline(img_file, save_path):
 
     image_16 = cv.pow(image_16 / scalar, PROPHOTO_GAMMA)
 
-    exact_corners = find_exact_corners(image_8)
+    exact_corners = find_exact_corners(image_8, config["lower_hsv"], config["upper_hsv"])
 
-    exact_corners_ints = np.array(exact_corners, dtype=np.int32)
-    # print("exact_corners_ints", exact_corners_ints)
-    for i in range(0, len(exact_corners_ints)):
-        cv.line(image_8, exact_corners_ints[i - 1], exact_corners_ints[i], (0, 0, 255), 5, cv.LINE_AA)
-    cv.imshow("find_inner_edges_ransac lines on pic", image_8)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-    image_16 = rotate_and_straighten(image_16, exact_corners)
+    image_16 = rotate_and_straighten(image_16, exact_corners, config)
 
     if is_16bit:
         dst = np.uint16(scalar * cv.pow(image_16, 1 / PROPHOTO_GAMMA))
@@ -372,7 +380,21 @@ if __name__ == "__main__":
         type=str,
         help="output folder for centered images",
         required=True)
+    parser.add_argument(
+        "-e",
+        dest="expansion",
+        type=str,
+        help="expansion abbreviation")
+    parser.add_argument(
+        "-t",
+        dest="holo_type",
+        type=str,
+        help="holo type (one of nonholo, holo, ex, shattered)")
     args = parser.parse_args()
+    config = {}
+    if args.expansion and args.holo_type:
+        config |= get_config(args.expansion, args.holo_type)
+
     if not os.path.isdir(args.output_folder):
         raise ValueError("Output path is not a folder")
     paths = []
@@ -385,6 +407,6 @@ if __name__ == "__main__":
     for i in paths:
         i = os.path.abspath(i)
         if os.path.exists(i):
-            center_pipeline(i, args.output_folder)
+            center_pipeline(i, config, args.output_folder)
         else:
             raise ValueError("{} does not exist".format(i))

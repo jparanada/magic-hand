@@ -34,13 +34,15 @@ def crop_render(image_path, output_folder):
     """
     card = Image.open(image_path)
     w, h = card.size
+    # we only crop if input is a square. if it's not we're just running oxipng + jpg output
     if w == 1024 and h == 1024:
         card = card.crop((145, 0, 878, 1024))
     alpha = Image.open(MASK_PATH).convert("L")
     card.putalpha(alpha)
 
     filename = os.path.basename(image_path)
-    full_save_path_no_extension = os.path.join(output_folder, os.path.splitext(filename)[0] + "-out")
+    # could add + "-out" as suffix to ensure we don't overwrite the originals
+    full_save_path_no_extension = os.path.join(output_folder, os.path.splitext(filename)[0])
     png_path = full_save_path_no_extension + ".png"
     card.save(png_path)
     oxipng(png_path)

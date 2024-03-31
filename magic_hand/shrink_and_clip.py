@@ -8,6 +8,7 @@
 import glob
 import os
 
+from config import OUTPUT_DIMS, get_config
 import argparse
 import colour
 import cv2 as cv
@@ -17,7 +18,6 @@ from scipy import ndimage as ndi
 from skimage import exposure
 
 CONFIG_IMAGE_DPI = 1600
-CONFIG_OUTPUT_DIMS = (754, 1044)
 CONFIG_CROP_FROM_EDGE = 10
 
 # defined by libtiff
@@ -121,7 +121,7 @@ def sharpen_luminosity(image: np.ndarray, radius=1.272, amount=1.0, threshold=1.
 
 
 def resize_opencv_bicubic(image: np.ndarray):
-    arr_out = cv.resize(image, (CONFIG_OUTPUT_DIMS[0], CONFIG_OUTPUT_DIMS[1]), interpolation=cv.INTER_CUBIC)
+    arr_out = cv.resize(image, (OUTPUT_DIMS[0], OUTPUT_DIMS[1]), interpolation=cv.INTER_CUBIC)
     arr_out = np.clip(arr_out, 0., 1., out=arr_out)
     # luminosity sharpening second pass. may have to re-tune params if you change the interpolation method
     arr_out = sharpen_luminosity(arr_out, radius=0.45, amount=0.4, threshold=1.0)
@@ -131,7 +131,7 @@ def resize_opencv_bicubic(image: np.ndarray):
 def resize_opencv_area(image: np.ndarray):
     # opencv doc for resize recommends INTER_AREA for shrinking
     # looks alright, but text is a bit soft
-    arr_out = cv.resize(image, (CONFIG_OUTPUT_DIMS[0], CONFIG_OUTPUT_DIMS[1]), interpolation=cv.INTER_AREA)
+    arr_out = cv.resize(image, (OUTPUT_DIMS[0], OUTPUT_DIMS[1]), interpolation=cv.INTER_AREA)
     arr_out = np.clip(arr_out, 0., 1., out=arr_out)
     # luminosity sharpening second pass. may have to re-tune params if you change the interpolation method
     arr_out = sharpen_luminosity(arr_out, radius=0.55, amount=0.75, threshold=1.0)
@@ -145,7 +145,7 @@ def resize_pillow(image: np.ndarray):
     resized_channels = []
     for i in range(image.shape[2]):
         channel = Image.fromarray(image[:, :, i])
-        channel = channel.resize(CONFIG_OUTPUT_DIMS, resample=resample_filter)
+        channel = channel.resize(OUTPUT_DIMS, resample=resample_filter)
         resized_channels.append(channel)
     arr_out = np.stack(resized_channels, axis=2)
     arr_out = np.clip(arr_out, 0, 1, out=arr_out)
@@ -153,7 +153,9 @@ def resize_pillow(image: np.ndarray):
     return sharpen_luminosity(arr_out, radius=0.55, amount=0.5, threshold=1.0)
 
 
-def shrink_and_clip(image_float, black_point_percentage=7, gamma=0.87):
+def shrink_and_clip(image_float, should_do_first_sharpen=True, black_point_percentage=7, gamma=0.87):
+    print(f"should do first sharpen: {should_do_first_sharpen}, black point percentage: {black_point_percentage}, "
+          f"gamma: {gamma}")
     # convert BGR->RGB
     image_float = image_float[..., ::-1]
 
@@ -166,8 +168,8 @@ def shrink_and_clip(image_float, black_point_percentage=7, gamma=0.87):
     lstar = np.power(lstar, gamma, out=lstar)
     lstar *= 100
 
-    # luminosity sharpening first pass
-    lstar = sharpen_lstar_of_cielab(lstar, radius=1.4, amount=1.2, threshold=1.0)
+    if should_do_first_sharpen:
+        lstar = sharpen_lstar_of_cielab(lstar, radius=1.4, amount=1.2, threshold=1.0)
 
     image_cielab[..., 0] = lstar
     image_float = convert_cielab_to_linearized_prophoto(image_cielab)
@@ -175,16 +177,18 @@ def shrink_and_clip(image_float, black_point_percentage=7, gamma=0.87):
     image_float = resize_opencv_bicubic(image_float)
 
     # crop
+    # -1 extra pixel on right side because desired width is an odd number (have already shifted the image a half-pixel
+    # left to compensate)
     image_float = image_float[
-               CONFIG_CROP_FROM_EDGE:CONFIG_OUTPUT_DIMS[1]-CONFIG_CROP_FROM_EDGE,
-               CONFIG_CROP_FROM_EDGE:CONFIG_OUTPUT_DIMS[0]-CONFIG_CROP_FROM_EDGE,
+               CONFIG_CROP_FROM_EDGE:OUTPUT_DIMS[1]-CONFIG_CROP_FROM_EDGE,
+               CONFIG_CROP_FROM_EDGE:OUTPUT_DIMS[0]-CONFIG_CROP_FROM_EDGE-1,
                :]
 
     # convert RGB->BGR
     return image_float[..., ::-1]
 
 
-def shrink_and_clip_pipeline(img_file: str, save_path: str):
+def shrink_and_clip_pipeline(img_file: str, config: dict, save_path: str):
     filename = os.path.basename(img_file)
     # full_save_path = os.path.join(save_path, filename)
     full_save_path_no_extension = os.path.join(save_path, filename).split(".tif")[0]
@@ -195,7 +199,13 @@ def shrink_and_clip_pipeline(img_file: str, save_path: str):
     image_float = image / scalar
     image_float **= PROPHOTO_GAMMA
 
-    image_float = shrink_and_clip(image_float)
+    should_do_first_sharpen = config.get("first_sharpen", True)
+    black_point_percentage = config["black_point_percentage"]
+    gamma = config["gamma"]
+    image_float = shrink_and_clip(image_float,
+                                  should_do_first_sharpen,
+                                  black_point_percentage,
+                                  gamma)
 
     # we're writing the file out just to do color conversion on it, feelsbadman
     # since pillow (and therefore ImageCms) doesn't support 3-channel 16-bit images
@@ -224,6 +234,20 @@ if __name__ == "__main__":
         type=str,
         help="output folder for shrunk and cropped images",
         required=True)
+    parser.add_argument(
+        "-e",
+        dest="expansion",
+        type=str,
+        help="expansion abbreviation")
+    parser.add_argument(
+        "-t",
+        dest="holo_type",
+        type=str,
+        help="holo type (one of nonholo, holo, ex, shattered)")
+    args = parser.parse_args()
+    config = {}
+    if args.expansion and args.holo_type:
+        config |= get_config(args.expansion, args.holo_type)
     args = parser.parse_args()
     if not os.path.isdir(args.output_folder):
         raise ValueError("Output path is not a folder")
@@ -237,6 +261,6 @@ if __name__ == "__main__":
     for i in paths:
         i = os.path.abspath(i)
         if os.path.exists(i):
-            shrink_and_clip_pipeline(i, args.output_folder)
+            shrink_and_clip_pipeline(i, config, args.output_folder)
         else:
             raise ValueError("{} does not exist".format(i))
