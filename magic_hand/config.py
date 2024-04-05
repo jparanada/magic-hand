@@ -33,6 +33,9 @@ TMBM2_WP_NONHOLO = np.array([0.756714, 0.788797, 0.611248])
 
 TMB_WP_NONHOLO_MANTINE = np.array([0.836413, 0.844644, 0.797932])
 
+BW_WP_NONHOLO = np.array([0.749031, 0.773730, 0.668747])
+BW_WP_HOLO = 0.84 * BW_WP_NONHOLO
+
 # RGB 57819 57887 58937
 SV_WP_NONHOLO = np.array([0.770666, 0.799261, 0.681583])
 SV_WP_HOLO = 0.825 * SV_WP_NONHOLO
@@ -95,6 +98,15 @@ UPPER_HSV_CL_SV = convert_hsv_to_opencv_hsv([254.9, 19.0, 76.0])
 # a wide range here because the HS border has varying colors. but empirically this works
 LOWER_HSV_CL_HS = convert_hsv_to_opencv_hsv([48.0, 23.0, 80.0])
 UPPER_HSV_CL_HS = convert_hsv_to_opencv_hsv([68.0, 44.0, 95.0])
+
+# 58.5 48.5 89.6
+LOWER_HSV_BW = convert_hsv_to_opencv_hsv([54, 44.0, 85.0])
+UPPER_HSV_BW = convert_hsv_to_opencv_hsv([64, 52.0, 93.0])
+
+# 58 49 90 - most of the border
+# 61 19 90 - light part
+LOWER_HSV_SF = convert_hsv_to_opencv_hsv([54, 35.0, 86.0])
+UPPER_HSV_SF = convert_hsv_to_opencv_hsv([64, 53.0, 95.0])
 
 
 config = {
@@ -198,7 +210,7 @@ config = {
         }
     },
     "cl-hgss": {
-        "xy_offset": np.array([0, -17]),
+        "xy_offset": np.array([0, 0]),
         "holo": {
             "first_sharpen": False,
             "white_point_xyz": SV_WP_HOLO,
@@ -206,6 +218,29 @@ config = {
             "gamma": 0.705,
             "lower_hsv": LOWER_HSV_CL_HS,
             "upper_hsv": UPPER_HSV_CL_HS
+        }
+    },
+    "bw": {
+        "xy_offset": np.array([0, 0]),
+        "holo": {
+            "first_sharpen": False,
+            "white_point_xyz": BW_WP_HOLO,
+            "black_point_percentage": 20,
+            "gamma": 0.705,
+            "lower_hsv": LOWER_HSV_BW,
+            "upper_hsv": UPPER_HSV_BW
+        }
+    },
+    # unsure if this extends back to DP, so just calling it Stormfront
+    "sf": {
+        "xy_offset": np.array([0, 0]),
+        "nonholo": {
+            "first_sharpen": True,
+            "white_point_xyz": BW_WP_HOLO,
+            "black_point_percentage": 17,
+            "gamma": 0.78,
+            "lower_hsv": LOWER_HSV_SF,
+            "upper_hsv": UPPER_HSV_SF
         }
     }
 }
