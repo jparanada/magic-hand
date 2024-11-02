@@ -17,7 +17,6 @@ from fix_color import scanner_refl_fix, cctiff
 from white_balance import white_balance
 from srgb_and_corners import srgb_and_corners_pipeline
 
-CONFIG_SCANNER_REFL_FIX_CALIBRATION_PATH = "/Users/paranada/icc_profiles/scanner/scanner_cal.txt"
 CONFIG_IMAGE_DPI = 1600
 # defined by libtiff
 COMPRESSION_NONE = 1
